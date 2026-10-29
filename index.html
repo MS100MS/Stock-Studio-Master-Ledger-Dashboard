@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Ledger — Seven-Statement Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#14171C;--bg-panel:#1A1E25;--paper:#EDEAE3;--muted:#8B90A0;--muted-2:#5D6273;--rule:#2A2F3A;--green:#4FAE83;--red:#C1503E;--amber:#D9A441;--focus:#7FB3D5;}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{background:radial-gradient(ellipse 900px 500px at 15% -10%,rgba(79,174,131,.06),transparent),radial-gradient(ellipse 900px 500px at 90% 0%,rgba(217,164,65,.05),transparent),var(--bg);color:var(--paper);font-family:'Inter',sans-serif;min-height:100vh;padding:28px 18px 70px;}
+a{color:inherit;}::selection{background:var(--amber);color:#14171C;}
+.wrap{max-width:1180px;margin:0 auto;}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+.masthead-title{font-family:'Source Serif 4',serif;font-size:27px;font-weight:700;display:flex;align-items:baseline;gap:9px;}
+.masthead-title .mark{color:var(--amber);font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;border:1px solid var(--amber);padding:2px 6px;border-radius:3px;}
+.masthead-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.pdf-status{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted-2);min-height:14px;text-align:right;width:100%;}
+.company-row{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+.company-row input{flex:1;min-width:200px;background:#101318;color:var(--paper);border:1px solid var(--rule);border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;padding:9px 12px;}
+select#savedSelect{background:#101318;color:var(--paper);border:1px solid var(--rule);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 10px;}
+button.primary{background:var(--amber);color:#14171C;border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:13px;padding:9px 16px;border-radius:6px;cursor:pointer;}
+button.primary:hover{box-shadow:0 0 0 3px rgba(217,164,65,0.2);}
+button.ghost{background:transparent;color:var(--muted);border:1px solid var(--rule);font-family:'Inter',sans-serif;font-size:12.5px;padding:8px 13px;border-radius:6px;cursor:pointer;}
+button.ghost:hover{color:var(--paper);border-color:var(--muted);}
+button.ghost:disabled{opacity:0.4;cursor:not-allowed;}
+button.ghost:disabled:hover{color:var(--muted);border-color:var(--rule);}
+button.ghost.confirm{color:var(--red);border-color:var(--red);background:rgba(193,80,62,.06);}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:22px;border-bottom:1px solid var(--rule);}
+.tabbtn{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:10px 14px;background:none;border:none;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;}
+.tabbtn.active{color:var(--amber);border-bottom-color:var(--amber);}
+.tabbtn .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:5px;}
+.tabpanel{display:none;}.tabpanel.active{display:block;}
+.intake{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:18px;margin-bottom:22px;}
+textarea{width:100%;min-height:150px;resize:vertical;background:#101318;color:var(--paper);border:1px solid var(--rule);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5;padding:11px;}
+.field-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;margin-bottom:7px;display:block;}
+.intake-actions{display:flex;gap:9px;margin-top:12px;}
+.err{color:var(--red);font-size:12px;font-family:'IBM Plex Mono',monospace;margin-top:8px;display:none;}
+.dash{display:none;}
+.ticker{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;margin-bottom:18px;}
+.chip{flex:0 0 auto;min-width:72px;border-radius:6px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--rule);}
+.chip .q{font-size:10px;color:var(--muted);display:block;margin-bottom:4px;}
+.chip .g{font-size:13px;font-weight:600;}
+.chip.pos{background:rgba(79,174,131,.1);border-color:rgba(79,174,131,.35);}.chip.pos .g{color:var(--green);}
+.chip.neg{background:rgba(193,80,62,.1);border-color:rgba(193,80,62,.35);}.chip.neg .g{color:var(--red);}
+.chip.flat .g{color:var(--muted);}.chip.latest{box-shadow:0 0 0 1.5px var(--amber);}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+@media(max-width:760px){.kpi-row{grid-template-columns:1fr 1fr;}}
+.kpi{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;}
+.kpi-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpi-value{font-family:'Source Serif 4',serif;font-size:23px;font-weight:600;margin-bottom:6px;}
+.kpi-delta{font-family:'IBM Plex Mono',monospace;font-size:11px;display:flex;gap:6px;flex-wrap:wrap;}
+.kpi-delta span{padding:2px 5px;border-radius:4px;}
+.up{color:var(--green);background:rgba(79,174,131,.12);}.down{color:var(--red);background:rgba(193,80,62,.12);}.neutral{color:var(--muted);background:rgba(139,144,160,.1);}
+.stamp-panel{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:15px 20px;margin-bottom:18px;}
+.stamp{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;text-transform:uppercase;padding:9px 15px;border:3px solid;border-radius:7px;transform:rotate(-2deg);white-space:nowrap;text-align:center;line-height:1.3;}
+.stamp span{display:block;font-size:10px;font-weight:600;letter-spacing:.06em;margin-top:3px;}
+.stamp.good{color:var(--green);border-color:var(--green);background:rgba(79,174,131,.08);}
+.stamp.bad{color:var(--red);border-color:var(--red);background:rgba(193,80,62,.08);}
+.stamp.warn{color:var(--amber);border-color:var(--amber);background:rgba(217,164,65,.08);}
+.stamp.neutral{color:var(--muted);border-color:var(--muted-2);background:rgba(139,144,160,.06);}
+.stamp-text{flex:1;min-width:220px;font-size:13px;line-height:1.5;}
+.panel{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:16px;margin-bottom:18px;}
+.panel-title{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600;margin-bottom:2px;}
+.panel-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted-2);margin-bottom:10px;}
+.chart-holder{position:relative;height:250px;}.chart-holder svg{width:100%;height:100%;display:block;}
+.chart-legend{display:flex;gap:14px;margin-bottom:8px;flex-wrap:wrap;}
+.chart-legend span{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.chart-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;}
+.svg-tick{font-family:'IBM Plex Mono',monospace;font-size:9px;fill:var(--muted-2);}
+.svg-xlabel{font-family:'IBM Plex Mono',monospace;font-size:8.5px;fill:var(--muted);}
+.svg-grid{stroke:rgba(42,47,58,.7);}.svg-zero{stroke:rgba(139,144,160,.55);stroke-dasharray:2,3;}
+.svg-datalabel{font-family:'IBM Plex Mono',monospace;font-size:8px;pointer-events:none;}
+.insights{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin-bottom:18px;}
+.insight-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;}
+.insight-list li{display:flex;gap:10px;font-size:13px;line-height:1.5;padding-bottom:9px;border-bottom:1px solid var(--rule);}
+.insight-list li:last-child{border:none;padding-bottom:0;}
+.tag{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-top:2px;white-space:nowrap;}
+.tag.good{background:rgba(79,174,131,.15);color:var(--green);}.tag.warn{background:rgba(217,164,65,.15);color:var(--amber);}
+.tag.bad{background:rgba(193,80,62,.15);color:var(--red);}.tag.info{background:rgba(139,144,160,.15);color:var(--muted);}
+.ledger{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:14px;overflow-x:auto;}
+table{border-collapse:collapse;width:100%;font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap;}
+thead th{text-align:right;color:var(--muted);font-size:10.5px;padding:7px 9px;border-bottom:1px solid var(--rule);}
+thead th:first-child{text-align:left;color:var(--paper);}
+tbody td{padding:6px 9px;text-align:right;border-bottom:1px solid rgba(42,47,58,.6);}
+tbody td:first-child{text-align:left;color:var(--muted);font-family:'Inter',sans-serif;font-size:12px;}
+tbody tr.hi td:first-child{color:var(--paper);font-weight:600;}
+td.neg{color:var(--red);}.latest-col{background:rgba(217,164,65,.06);}
+.snap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px;}
+.snap-card{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:15px 17px;position:relative;}
+.snap-card h4{margin:0 0 8px;font-family:'Source Serif 4',serif;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.snap-card h4 .status{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;text-transform:uppercase;padding:2px 6px;border-radius:4px;letter-spacing:0.04em;}
+.snap-card h4 .status.good{background:rgba(79,174,131,.15);color:var(--green);}
+.snap-card h4 .status.bad{background:rgba(193,80,62,.15);color:var(--red);}
+.snap-card h4 .status.warn{background:rgba(217,164,65,.15);color:var(--amber);}
+.snap-card h4 .status.na{background:rgba(139,144,160,.15);color:var(--muted);}
+.snap-card .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:3px 0;}
+.snap-card .row b{color:var(--paper);font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.snap-empty{color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:center;padding:30px;background:var(--bg-panel);border:1px dashed var(--rule);border-radius:10px;}
+.combined-panel{background:var(--bg-panel);border:1px solid var(--rule);border-radius:10px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+.combined-stamp{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:0.04em;padding:13px 20px;border:3px solid;border-radius:7px;transform:rotate(-2.5deg);white-space:nowrap;}
+.combined-stamp.good{color:var(--green);border-color:var(--green);background:rgba(79,174,131,.08);}
+.combined-stamp.bad{color:var(--red);border-color:var(--red);background:rgba(193,80,62,.08);}
+.combined-stamp.warn{color:var(--amber);border-color:var(--amber);background:rgba(217,164,65,.08);}
+.combined-stamp.neutral{color:var(--muted);border-color:var(--muted-2);background:rgba(139,144,160,.06);}
+.combined-text{flex:1;min-width:240px;font-size:13.5px;line-height:1.55;}
+.combined-text .combined-headline{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600;margin-bottom:7px;}
+.foot-note{text-align:center;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:10.5px;margin-top:18px;}
+@media print{.tabs,.intake,.foot-note,.company-row,.masthead-actions{display:none!important;}.tabpanel{display:block!important;}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="masthead-title"><span class="mark">7x</span> Master Ledger — Seven-Statement Reader</div>
+    <div class="masthead-actions">
+      <button class="ghost" id="clearTabBtn" title="Clear only the currently active tab">🗑 Clear this tab</button>
+      <button class="ghost" id="resetAllBtn" title="Clear all pasted data and start with a new company">↻ Analyze another company</button>
+      <button class="ghost" id="downloadPdfBtn">⬇ PDF of current tab</button>
+      <div class="pdf-status" id="pdfStatus"></div>
+    </div>
+  </div>
+  <div class="company-row">
+    <input id="companyName" placeholder="Company name (shared across all statements — used for saving)">
+    <select id="savedSelect"><option value="">— Load a saved company —</option></select>
+    <button class="ghost" id="deleteSavedBtn" style="display:none;">✕ Delete saved</button>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tabbtn active" data-tab="snapshot">Snapshot</button>
+    <button class="tabbtn" data-tab="peers">Peers<span class="dot" id="dot-peers" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="qr">Quarterly Results<span class="dot" id="dot-qr" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="pnl">Profit &amp; Loss<span class="dot" id="dot-pnl" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="bs">Balance Sheet<span class="dot" id="dot-bs" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="cf">Cash Flow<span class="dot" id="dot-cf" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="ratios">Ratios<span class="dot" id="dot-ratios" style="display:none"></span></button>
+    <button class="tabbtn" data-tab="sh">Shareholding<span class="dot" id="dot-sh" style="display:none"></span></button>
+  </div>
+
+  <div class="tabpanel active" id="panel-snapshot">
+    <div id="snapContent"><div class="snap-empty">Paste data into any of the seven tabs above to build the snapshot. Cross-statement checks appear here once two or more are loaded.</div></div>
+  </div>
+
+  <div class="tabpanel" id="panel-peers">
+    <div class="intake" id="intake-peers">
+      <label class="field-label">Paste the "Peer Comparison" table from Screener</label>
+      <textarea id="paste-peers" placeholder="S.No.&#9;Company&#9;CMP Rs.&#9;Mar Cap Rs.Cr.&#9;Debt / Eq&#9;P/E&#9;EPS 12M Rs.&#9;Sales growth %&#9;PEG&#9;ROE %&#9;Ind PE&#10;1.&#9;…"></textarea>
+      <div class="intake-actions">
+        <button class="primary" data-run="peers">Read the peers →</button>
+        <button class="ghost" data-sample="peers">Try sample data</button>
+        <input id="focusCompany" placeholder="Focus company (optional — highlights it in the charts)" style="flex:1;min-width:180px;background:#101318;color:var(--paper);border:1px solid var(--rule);border-radius:6px;font-family:'Inter',sans-serif;font-size:12.5px;padding:8px 11px;">
+      </div>
+      <div class="err" id="err-peers"></div>
+    </div>
+    <div class="dash" id="dash-peers"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-qr">
+    <div class="intake" id="intake-qr">
+      <label class="field-label">Paste the "Quarterly Results" table from Screener</label>
+      <textarea id="paste-qr" placeholder="Quarterly Results&#10;Sales +&#9;14,745&#9;16,545 …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="qr">Read the results →</button><button class="ghost" data-sample="qr">Try sample data</button></div>
+      <div class="err" id="err-qr"></div>
+    </div>
+    <div class="dash" id="dash-qr"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-pnl">
+    <div class="intake" id="intake-pnl">
+      <label class="field-label">Paste the "Profit &amp; Loss" table from Screener</label>
+      <textarea id="paste-pnl" placeholder="Profit & Loss&#10;Sales +&#9;71,448&#9;75,841 …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="pnl">Read the results →</button><button class="ghost" data-sample="pnl">Try sample data</button></div>
+      <div class="err" id="err-pnl"></div>
+    </div>
+    <div class="dash" id="dash-pnl"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-bs">
+    <div class="intake" id="intake-bs">
+      <label class="field-label">Paste the "Balance Sheet" table from Screener</label>
+      <textarea id="paste-bs" placeholder="Balance Sheet&#10;Equity Capital&#9;8,245&#9;8,245 …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="bs">Read the results →</button><button class="ghost" data-sample="bs">Try sample data</button></div>
+      <div class="err" id="err-bs"></div>
+    </div>
+    <div class="dash" id="dash-bs"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-cf">
+    <div class="intake" id="intake-cf">
+      <label class="field-label">Paste the "Cash Flows" table from Screener</label>
+      <textarea id="paste-cf" placeholder="Cash Flows&#10;Cash from Operating Activity +&#9;-0.22&#9;5.36 …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="cf">Read the results →</button><button class="ghost" data-sample="cf">Try sample data</button></div>
+      <div class="err" id="err-cf"></div>
+    </div>
+    <div class="dash" id="dash-cf"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-ratios">
+    <div class="intake" id="intake-ratios">
+      <label class="field-label">Paste the "Ratios" table from Screener</label>
+      <textarea id="paste-ratios" placeholder="Ratios&#10;Debtor Days&#9;17&#9;18 …&#10;ROCE %&#9;10%&#9;18% …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="ratios">Read the ratios →</button><button class="ghost" data-sample="ratios">Try sample data</button></div>
+      <div class="err" id="err-ratios"></div>
+    </div>
+    <div class="dash" id="dash-ratios"></div>
+  </div>
+
+  <div class="tabpanel" id="panel-sh">
+    <div class="intake" id="intake-sh">
+      <label class="field-label">Paste the "Shareholding Pattern" table from Screener (Quarterly view)</label>
+      <textarea id="paste-sh" placeholder="Shareholding Pattern&#10;Promoters +&#9;47.22%&#9;46.89% …"></textarea>
+      <div class="intake-actions"><button class="primary" data-run="sh">Read the results →</button><button class="ghost" data-sample="sh">Try sample data</button></div>
+      <div class="err" id="err-sh"></div>
+    </div>
+    <div class="dash" id="dash-sh"></div>
+  </div>
+
+  <div class="foot-note">Not investment advice. Numbers are read exactly as pasted — verify against the source before relying on them.</div>
+</div>
+
+<script>
+(function(){
+// ============================== SHARED ENGINE ==============================
+const PERIOD_RE = /^[A-Za-z]{3,9}[\s'’]?\d{2,4}$/;
+function splitCells(l){ return l.indexOf('\t')!==-1 ? l.split('\t').map(s=>s.trim()) : l.split(/ {2,}/).map(s=>s.trim()).filter(s=>s.length); }
+function parseNum(raw){
+  if(raw==null) return null;
+  let s=String(raw).trim();
+  if(s===''||s==='-'||s==='—') return null;
+  s=s.replace(/,/g,'').replace(/%/g,'').replace(/₹/g,'').replace(/\bx\b/gi,'').replace(/\bCr\.?/gi,'').trim();
+  const neg=/^\(.*\)$/.test(s); s=s.replace(/[()]/g,'');
+  const n=parseFloat(s); if(isNaN(n)) return null; return neg?-n:n;
+}
+function cleanLabel(l){ return l.replace(/[+\-]\s*$/,'').replace(/:\s*$/,'').trim(); }
+function findRow(rows,pats){ for(const p of pats){ const r=rows.find(r=>p.test(r.label)); if(r) return r; } return null; }
+function parseTable(text, sectionRE){
+  const lines=text.split('\n').map(l=>l.replace(/\r/g,'')).filter(l=>l.trim().length);
+  let headerIdx=-1, headerCells=null;
+  for(let i=0;i<lines.length;i++){
+    const cells=splitCells(lines[i]);
+    if(cells.length>=3){
+      const m=cells.filter(c=>PERIOD_RE.test(c)).length;
+      if(m>=Math.max(3,Math.floor(cells.length*0.55))){ headerIdx=i; headerCells=cells; break; }
+    }
+  }
+  if(headerIdx===-1) throw new Error('Couldn\'t find the period header row (e.g. "Mar 2023  Mar 2024 …"). Make sure the full table, including the header, is pasted.');
+  const periods=headerCells.filter(c=>c.length>0);
+  const rows=[]; let i=headerIdx+1;
+  for(; i<lines.length; i++){
+    const trimmed=lines[i].trim();
+    if(sectionRE && sectionRE.test(trimmed)) break;
+    const cells=splitCells(lines[i]);
+    if(cells.length<2) continue;
+    const label=cleanLabel(cells[0]); if(!label) continue;
+    const isPct=cells.slice(1).some(c=>String(c).indexOf('%')!==-1);
+    const values=periods.map((p,pi)=>parseNum(cells[pi+1]));
+    rows.push({label,isPercentRow:isPct,values});
+  }
+  if(rows.length===0) throw new Error('Found a header row but no data rows underneath it.');
+  let statBlocks=null;
+  if(sectionRE){
+    statBlocks={}; let cur=null;
+    for(; i<lines.length; i++){
+      const t=lines[i].trim();
+      if(sectionRE.test(t)){ cur=t; statBlocks[cur]={}; continue; }
+      if(!cur) continue;
+      const cells=splitCells(lines[i]); if(cells.length<2) continue;
+      const key=cleanLabel(cells[0]); if(!key) continue;
+      statBlocks[cur][key]=parseNum(cells[1]);
+    }
+  }
+  return {periods,rows,statBlocks};
+}
+const fmt = n => n==null||isNaN(n) ? '—' : n.toLocaleString('en-IN',{maximumFractionDigits:Math.abs(n)<10?2:0});
+const fmtPct = n => n==null||isNaN(n) ? '—' : (n>0?'+':'')+n.toFixed(1)+'%';
+const fmtPpt = n => n==null||isNaN(n) ? '—' : (n>0?'+':'')+n.toFixed(2)+'ppt';
+const pctChange = (a,b) => (a==null||b==null||a===0) ? null : ((b-a)/Math.abs(a))*100;
+function cagr(a,b,y){ if(a==null||b==null||y<=0||a<=0||b<0) return null; return (Math.pow(b/a,1/y)-1)*100; }
+
+const CW=640,CH=250,PAD={top:22,right:10,bottom:42,left:46};
+const innerW=CW-PAD.left-PAD.right, innerH=CH-PAD.top-PAD.bottom;
+function niceMinMax(vals){ vals=vals.filter(v=>v!=null); let mn=Math.min(0,...vals),mx=Math.max(0,...vals); if(mn===mx){mn-=1;mx+=1;} const p=(mx-mn)*0.12; return [mn-p,mx+p]; }
+const sxF=(i,n)=>PAD.left+(n<=1?innerW/2:(i/(n-1))*innerW);
+const syF=(v,mn,mx)=>PAD.top+innerH-((v-mn)/(mx-mn))*innerH;
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function axisGrid(mn,mx,periods,yFmt){
+  let s=''; for(let t=0;t<=5;t++){ const val=mn+(mx-mn)*(t/5), y=syF(val,mn,mx);
+    s+=`<line class="svg-grid" x1="${PAD.left}" y1="${y}" x2="${CW-PAD.right}" y2="${y}"></line><text class="svg-tick" x="${PAD.left-5}" y="${y+3}" text-anchor="end">${esc(yFmt(val))}</text>`; }
+  if(mn<0&&mx>0){ const y0=syF(0,mn,mx); s+=`<line class="svg-zero" x1="${PAD.left}" y1="${y0}" x2="${CW-PAD.right}" y2="${y0}"></line>`; }
+  periods.forEach((q,i)=>{ const x=sxF(i,periods.length); const parts=q.split(' '); const short=parts.length>=2?parts[0].slice(0,3)+"'"+parts[1].slice(-2):q.slice(0,6);
+    s+=`<text class="svg-xlabel" x="${x}" y="${CH-PAD.bottom+13}" text-anchor="end" transform="rotate(-55 ${x} ${CH-PAD.bottom+13})">${esc(short)}</text>`; });
+  return s;
+}
+function legendHTML(items){ return items.map(it=>`<span><i style="background:${it.color}"></i>${esc(it.name)}</span>`).join(''); }
+function renderCombo(svgId,legId,periods,bars,line,yFmt){
+  const svg=document.getElementById(svgId); if(!svg) return;
+  if(legId) document.getElementById(legId).innerHTML=legendHTML(bars.map(b=>({name:b.name,color:b.color})).concat(line?[{name:line.name,color:line.color}]:[]));
+  const all=[].concat(...bars.map(b=>b.data), line?line.data:[]);
+  const [mn,mx]=niceMinMax(all); let s=axisGrid(mn,mx,periods,yFmt);
+  const n=periods.length, groupW=innerW/n*0.62, barW=groupW/bars.length;
+  periods.forEach((q,i)=>{ const cx=sxF(i,n);
+    bars.forEach((b,bi)=>{ const v=b.data[i]; if(v==null) return;
+      const x=cx-groupW/2+bi*barW+1, y0=syF(0,mn,mx), y1=syF(v,mn,mx), top=Math.min(y0,y1), h=Math.abs(y1-y0);
+      s+=`<rect x="${x}" y="${top}" width="${barW-2}" height="${Math.max(h,1)}" fill="${b.color}" rx="1.5"><title>${esc(b.name)} · ${q}: ${esc(yFmt(v))}</title></rect>`; });
+  });
+  if(line){ let pts=[]; line.data.forEach((v,i)=>{ if(v!=null) pts.push([sxF(i,n),syF(v,mn,mx),i,v]); });
+    const path=pts.map((p,idx)=>(idx===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    s+=`<path d="${path}" fill="none" stroke="${line.color}" stroke-width="2.2"></path>`;
+    pts.forEach(p=>{ s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.8" fill="${line.color}"><title>${esc(line.name)} · ${periods[p[2]]}: ${esc(yFmt(p[3]))}</title></circle>`; });
+  }
+  svg.innerHTML=s;
+}
+function renderLine(svgId,legId,periods,lines,yFmt,fixedRange){
+  const svg=document.getElementById(svgId); if(!svg) return;
+  if(legId) document.getElementById(legId).innerHTML=legendHTML(lines.map(l=>({name:l.name,color:l.color})));
+  const all=[].concat(...lines.map(l=>l.data)); const [mn,mx]=fixedRange||niceMinMax(all);
+  let s=axisGrid(mn,mx,periods,yFmt); const n=periods.length;
+  lines.forEach(line=>{ let pts=[]; line.data.forEach((v,i)=>{ if(v!=null) pts.push([sxF(i,n),syF(v,mn,mx),i,v]); }); if(!pts.length) return;
+    const path=pts.map((p,idx)=>(idx===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    s+=`<path d="${path}" fill="none" stroke="${line.color}" stroke-width="2.2"></path>`;
+    pts.forEach(p=>{ s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.8" fill="${line.color}"><title>${esc(line.name)} · ${periods[p[2]]}: ${esc(yFmt(p[3]))}</title></circle>`; });
+  });
+  svg.innerHTML=s;
+}
+function renderStacked(svgId,legId,periods,series,yFmt){
+  const svg=document.getElementById(svgId); if(!svg) return;
+  if(legId) document.getElementById(legId).innerHTML=legendHTML(series.map(s=>({name:s.name,color:s.color})));
+  const mn=0,mx=100; let s=axisGrid(mn,mx,periods,yFmt); const n=periods.length, barW=innerW/n*0.62;
+  periods.forEach((q,i)=>{ const cx=sxF(i,n), x=cx-barW/2; let cum=0;
+    series.forEach(sr=>{ const v=sr.data[i]; if(v==null) return;
+      const y0=syF(cum,mn,mx), y1=syF(cum+v,mn,mx), top=Math.min(y0,y1), h=Math.max(Math.abs(y1-y0),0.5);
+      s+=`<rect x="${x}" y="${top}" width="${barW}" height="${h}" fill="${sr.color}"><title>${esc(sr.name)} · ${q}: ${v.toFixed(2)}%</title></rect>`; cum+=v; });
+  });
+  svg.innerHTML=s;
+}
+function addInsight(list,tag,cls,text){ const li=document.createElement('li'); li.innerHTML=`<span class="tag ${cls}">${esc(tag)}</span><span>${text}</span>`; list.appendChild(li); }
+function kpiCard(label,value,deltas){ const d=document.createElement('div'); d.className='kpi';
+  d.innerHTML=`<div class="kpi-label">${esc(label)}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${deltas.map(x=>`<span class="${x.cls}">${esc(x.text)}</span>`).join('')}</div>`; return d; }
+function deltaPct(val,prefix){ if(val==null) return {cls:'neutral',text:prefix+'—'}; return {cls:val>=0?'up':'down', text:prefix+fmtPct(val)}; }
+function renderStamp(elId,verdict,label,text,subLabel){
+  const el=document.getElementById(elId); const cls=(verdict==='na')?'neutral':verdict;
+  const labelHtml = subLabel ? `${esc(label)}<span>${esc(subLabel)}</span>` : esc(label);
+  el.innerHTML=`<div class="stamp ${cls}">${labelHtml}</div><div class="stamp-text">${text}</div>`;
+}
+function renderLedger(elId,periods,rows,highlightRE){
+  const table=document.getElementById(elId);
+  let thead='<thead><tr><th>Metric</th>'+periods.map((q,i)=>`<th class="${i===periods.length-1?'latest-col':''}">${esc(q)}</th>`).join('')+'</tr></thead>';
+  let tbody='<tbody>';
+  rows.forEach(r=>{ const hi=highlightRE.test(r.label);
+    tbody+=`<tr class="${hi?'hi':''}"><td>${esc(r.label)}</td>`+r.values.map((v,i)=>{
+      let cls=i===periods.length-1?'latest-col':''; if(v!=null&&v<0) cls+=' neg';
+      const disp=v==null?'—':(r.isPercentRow?v.toFixed(2)+'%':fmt(v)); return `<td class="${cls}">${disp}</td>`;
+    }).join('')+'</tr>'; });
+  tbody+='</tbody>'; table.innerHTML=thead+tbody;
+}
+async function offerDownload(filename,blob){
+  if(window.claude && typeof window.claude.use==='function'){
+    try{ const dl=await window.claude.use('downloads'); if(dl){ try{ const r=await dl.save({filename,data:blob}); return {ok:true,status:r.status}; }catch(e){ return {ok:false,code:(e&&e.code)||'unavailable'}; } } }catch(e){}
+  }
+  try{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); return {ok:true,status:'saved'}; }
+  catch(e){ return {ok:false,code:'unavailable'}; }
+}
+
+// ============================== TABS ==============================
+const TABS=['snapshot','peers','qr','pnl','bs','cf','ratios','sh'];
+const STATEMENT_TABS = TABS.filter(t=>t!=='snapshot');
+document.getElementById('tabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.tabbtn'); if(!btn) return;
+  TABS.forEach(t=>{ document.getElementById('panel-'+t).classList.toggle('active', t===btn.dataset.tab); });
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active', b===btn));
+  updateClearTabButton();
+});
+function currentTab(){
+  const b=document.querySelector('.tabbtn.active'); return b ? b.dataset.tab : 'snapshot';
+}
+function updateClearTabButton(){
+  const btn=document.getElementById('clearTabBtn');
+  const onSnapshot = currentTab()==='snapshot';
+  btn.disabled = onSnapshot;
+  btn.title = onSnapshot ? 'Switch to a statement tab to clear it' : 'Clear only this tab';
+}
+
+// ============================== CLEAR / RESET BUTTONS ==============================
+// Both use the same two-click confirm pattern as the delete-saved-company button:
+// first click arms, second click within 3 seconds executes; otherwise reverts.
+function armConfirm(btn, confirmLabel, restoreLabel, onConfirm){
+  let armed=false, timer=null;
+  btn.addEventListener('click', ()=>{
+    if(btn.disabled) return;
+    if(!armed){
+      armed=true;
+      btn.classList.add('confirm');
+      btn.textContent=confirmLabel;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{ armed=false; btn.classList.remove('confirm'); btn.textContent=restoreLabel; },3000);
+      return;
+    }
+    armed=false; clearTimeout(timer);
+    btn.classList.remove('confirm');
+    btn.textContent=restoreLabel;
+    onConfirm();
+  });
+}
+// Clear this tab only
+armConfirm(document.getElementById('clearTabBtn'), 'Confirm clear?', '🗑 Clear this tab', ()=>{
+  const t=currentTab();
+  if(t==='snapshot') return;
+  const pasteEl=document.getElementById('paste-'+t);
+  const dashEl=document.getElementById('dash-'+t);
+  const intakeEl=document.getElementById('intake-'+t);
+  const errEl=document.getElementById('err-'+t);
+  const dotEl=document.getElementById('dot-'+t);
+  if(pasteEl) pasteEl.value='';
+  if(dashEl){ dashEl.innerHTML=''; dashEl.style.display='none'; }
+  if(intakeEl) intakeEl.style.display='block';
+  if(errEl){ errEl.textContent=''; errEl.style.display='none'; }
+  if(dotEl) dotEl.style.display='none';
+  delete MS[t];
+  persist(); renderSnapshot();
+});
+// Reset everything (analyze another company)
+armConfirm(document.getElementById('resetAllBtn'), 'Confirm reset?', '↻ Analyze another company', ()=>{
+  // Clear company name field
+  document.getElementById('companyName').value='';
+  // Clear the peers focus field too
+  const focusEl=document.getElementById('focusCompany');
+  if(focusEl) focusEl.value='';
+  // Clear every statement tab
+  STATEMENT_TABS.forEach(t=>{
+    const pasteEl=document.getElementById('paste-'+t);
+    const dashEl=document.getElementById('dash-'+t);
+    const intakeEl=document.getElementById('intake-'+t);
+    const errEl=document.getElementById('err-'+t);
+    const dotEl=document.getElementById('dot-'+t);
+    if(pasteEl) pasteEl.value='';
+    if(dashEl){ dashEl.innerHTML=''; dashEl.style.display='none'; }
+    if(intakeEl) intakeEl.style.display='block';
+    if(errEl){ errEl.textContent=''; errEl.style.display='none'; }
+    if(dotEl) dotEl.style.display='none';
+    delete MS[t];
+  });
+  // Return to Snapshot
+  TABS.forEach(t=>{ document.getElementById('panel-'+t).classList.toggle('active', t==='snapshot'); });
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab==='snapshot'));
+  updateClearTabButton();
+  // Clear dropdown selection highlight (leave saved list intact)
+  document.getElementById('savedSelect').value='';
+  document.getElementById('deleteSavedBtn').style.display='none';
+  // Clear any leftover status text
+  document.getElementById('pdfStatus').textContent='';
+  // Re-render the empty snapshot
+  renderSnapshot();
+  // Scroll to top so the user sees the empty intake
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// ============================== STATE + SAVE/LOAD ==============================
+const MS = {};
+const SAVE_KEY='masterLedger7_companies_v1';
+function storageOK(){ try{ localStorage.setItem('__t__','1'); localStorage.removeItem('__t__'); return true; }catch(e){ return false; } }
+function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch(e){ return {}; } }
+function writeSaved(o){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(o)); }catch(e){} }
+function refreshSavedDropdown(sel){
+  if(!storageOK()) return;
+  const data=loadSaved(); const names=Object.keys(data).sort((a,b)=>(data[b].savedAt||0)-(data[a].savedAt||0));
+  const dd=document.getElementById('savedSelect');
+  dd.innerHTML='<option value="">— Load a saved company —</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(sel) dd.value=sel;
+  document.getElementById('deleteSavedBtn').style.display = sel && data[sel] ? 'inline-block' : 'none';
+}
+function persist(){
+  const name=document.getElementById('companyName').value.trim(); if(!name || !storageOK()) return;
+  const data=loadSaved();
+  data[name]={savedAt:Date.now(), texts:{
+    peers:document.getElementById('paste-peers').value,
+    qr:document.getElementById('paste-qr').value,
+    pnl:document.getElementById('paste-pnl').value,
+    bs:document.getElementById('paste-bs').value,
+    cf:document.getElementById('paste-cf').value,
+    ratios:document.getElementById('paste-ratios').value,
+    sh:document.getElementById('paste-sh').value,
+    focus:document.getElementById('focusCompany').value
+  }};
+  writeSaved(data); refreshSavedDropdown(name);
+}
+document.getElementById('savedSelect').addEventListener('change', e=>{
+  const name=e.target.value; if(!name) return;
+  const data=loadSaved(); const entry=data[name]; if(!entry) return;
+  // Clear existing dashboards first so loaded state is clean
+  STATEMENT_TABS.forEach(t=>{
+    const pasteEl=document.getElementById('paste-'+t);
+    const dashEl=document.getElementById('dash-'+t);
+    const intakeEl=document.getElementById('intake-'+t);
+    const errEl=document.getElementById('err-'+t);
+    const dotEl=document.getElementById('dot-'+t);
+    if(pasteEl) pasteEl.value='';
+    if(dashEl){ dashEl.innerHTML=''; dashEl.style.display='none'; }
+    if(intakeEl) intakeEl.style.display='block';
+    if(errEl){ errEl.textContent=''; errEl.style.display='none'; }
+    if(dotEl) dotEl.style.display='none';
+    delete MS[t];
+  });
+  // Load the saved texts
+  document.getElementById('companyName').value=name;
+  Object.keys(entry.texts||{}).forEach(k=>{
+    if(k==='focus'){ const f=document.getElementById('focusCompany'); if(f) f.value=entry.texts[k]; }
+    else if(entry.texts[k]){ const p=document.getElementById('paste-'+k); if(p) p.value=entry.texts[k]; }
+  });
+  // Re-run the ones that have data
+  STATEMENT_TABS.forEach(k=>{ if(entry.texts && entry.texts[k]) RUN[k](); });
+  refreshSavedDropdown(name);
+});
+let delPending=false, delTimer=null;
+document.getElementById('deleteSavedBtn').addEventListener('click', ()=>{
+  const name=document.getElementById('savedSelect').value; if(!name) return;
+  if(!delPending){ delPending=true; document.getElementById('deleteSavedBtn').textContent='Confirm ✕?'; clearTimeout(delTimer);
+    delTimer=setTimeout(()=>{ delPending=false; document.getElementById('deleteSavedBtn').textContent='✕ Delete saved'; },3000); return; }
+  delPending=false; clearTimeout(delTimer);
+  const data=loadSaved(); delete data[name]; writeSaved(data); refreshSavedDropdown();
+});
+
+document.getElementById('downloadPdfBtn').addEventListener('click', async ()=>{
+  const active=currentTab();
+  const target = active==='snapshot' ? document.getElementById('panel-snapshot') : document.getElementById('dash-'+active);
+  const status=document.getElementById('pdfStatus');
+  if(!target || !target.innerHTML.trim()){ status.textContent='Nothing analyzed on this tab yet.'; setTimeout(()=>status.textContent='',3000); return; }
+  const libsReady=window.jspdf&&window.jspdf.jsPDF&&window.html2canvas;
+  if(!libsReady){ status.textContent="PDF engine didn't load — using print dialog."; try{window.print();}catch(e){} return; }
+  status.textContent='Rendering…';
+  try{
+    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+    const canvas=await window.html2canvas(target,{backgroundColor:'#14171C',scale:2,useCORS:true});
+    const {jsPDF}=window.jspdf; const doc=new jsPDF('p','pt','a4');
+    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+    const imgW=pageW, imgH=(canvas.height*imgW)/canvas.width, imgData=canvas.toDataURL('image/png');
+    let heightLeft=imgH, position=0, first=true;
+    while(heightLeft>2){ if(!first) doc.addPage(); doc.addImage(imgData,'PNG',0,position,imgW,imgH); heightLeft-=pageH; position-=pageH; first=false; }
+    const company=(document.getElementById('companyName').value.trim()||'Company').replace(/[^a-z0-9]+/gi,'_');
+    const filename=`${company}_${active}_ledger.pdf`; const blob=doc.output('blob');
+    const res=await offerDownload(filename,blob);
+    status.textContent = res.ok ? (res.status==='delivered'?'Sent ✓':'Downloaded ✓') : 'Could not save — try again.';
+    setTimeout(()=>status.textContent='',3000);
+  }catch(e){ status.textContent='Failed — try the print dialog.'; try{window.print();}catch(err){} }
+});
+
+// ============================== PEERS ==============================
+const SAMPLE_PEERS=`Peer comparison
+S.No.\tCompany\tCMP Rs.\tMar Cap Rs.Cr.\tDebt / Eq\tP/E\tEPS 12M Rs.\tSales growth %\tPEG\tROE %\tInd PE
+1.\tMaruti Suzuki\t11386.00\t357978.77\t0.00\t24.97\t455.91\t26.61\t1.18\t14.26\t41.97
+2.\tM & M\t2860.00\t355649.25\t1.47\t18.55\t148.53\t26.18\t0.82\t20.33\t41.97
+3.\tHyundai Motor I\t2024.00\t164458.32\t0.05\t33.22\t60.93\t3.55\t6.91\t29.89\t41.97
+4.\tTata Motors PVeh\t279.40\t102902.80\t0.71\t103.27\t215.20\t-5.62\t0.44\t75.66\t41.97
+5.\tForce Motors\t16800.00\t22136.12\t0.00\t20.12\t950.08\t8.44\t0.10\t26.09\t41.97
+6.\tOlectra Greentec\t1096.20\t8997.69\t0.31\t50.71\t21.62\t38.43\t1.29\t15.59\t41.97
+7.\tMercury EV-Tech\t37.06\t704.04\t0.03\t154.39\t0.24\t4.21\t3.45\t1.51\t41.97
+Median: 8 Co.\t1560.1\t62519.46\t0.18\t41.97\t104.73\t6.32\t1.0\t23.19\t41.97`;
+
+const PEER_KNOWN = {'s.no.':'__sno','s.no':'__sno','company':'company','cmp rs.':'cmp','cmp':'cmp','mar cap rs.cr.':'marcap','mar cap rs.cr':'marcap','mcap rs.cr.':'marcap','mcap':'marcap','debt / eq':'debtEq','debt/eq':'debtEq','debt / equity':'debtEq','p/e':'pe','pe':'pe','eps 12m rs.':'eps12m','eps 12m':'eps12m','sales growth %':'salesGrowth','sales growth':'salesGrowth','peg':'peg','roe %':'roe','roe':'roe','ind pe':'indPe','industry pe':'indPe'};
+function normaliseHeader(h){ return String(h).toLowerCase().trim().replace(/\s+/g,' '); }
+function parsePeerTable(text){
+  const lines=text.split('\n').map(l=>l.replace(/\r/g,'')).filter(l=>l.trim().length);
+  let headerIdx=-1, headerCells=null, columnMap=null;
+  for(let i=0;i<lines.length;i++){
+    const cells=splitCells(lines[i]);
+    if(cells.length<4) continue;
+    const map=cells.map(c=>PEER_KNOWN[normaliseHeader(c)]||null);
+    if(map.includes('company') && map.filter(Boolean).length>=4){ headerIdx=i; headerCells=cells; columnMap=map; break; }
+  }
+  if(headerIdx===-1) throw new Error('Couldn\'t find the header row. Paste the peer comparison table with "Company" plus metric names.');
+  const companyColIdx=columnMap.indexOf('company');
+  const hasSNo=columnMap.indexOf('__sno')!==-1;
+  const companies=[]; let medianRow=null;
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const cells=splitCells(lines[i]);
+    if(cells.length<3) continue;
+    const firstTwo=[cells[0]||'',cells[1]||''].join(' ').toLowerCase();
+    const isMedian=firstTwo.includes('median');
+    if(isMedian){
+      const row={name:'Median', isMedian:true};
+      columnMap.forEach((mk,ci)=>{
+        if(!mk || mk==='__sno' || mk==='company') return;
+        const srcIdx = hasSNo ? ci-1 : ci;
+        row[mk]=parseNum(cells[srcIdx]);
+      });
+      medianRow=row; continue;
+    }
+    const nameRaw=(cells[companyColIdx]||'').trim(); if(!nameRaw) continue;
+    if(/^-?\d+(\.\d+)?$/.test(nameRaw)) continue;
+    const row={name:nameRaw, isMedian:false};
+    columnMap.forEach((mk,ci)=>{
+      if(!mk || mk==='__sno' || mk==='company') return;
+      row[mk]=parseNum(cells[ci]);
+    });
+    companies.push(row);
+  }
+  if(!companies.length) throw new Error('Found the header but no company rows underneath it.');
+  if(!medianRow){
+    const metrics=['marcap','debtEq','pe','eps12m','salesGrowth','peg','roe','indPe','cmp'];
+    const derived={name:'Median (computed)', isMedian:true};
+    metrics.forEach(m=>{
+      const vals=companies.map(c=>c[m]).filter(v=>v!=null).sort((a,b)=>a-b);
+      if(!vals.length){ derived[m]=null; return; }
+      const mid=Math.floor(vals.length/2);
+      derived[m]=(vals.length%2===0)?(vals[mid-1]+vals[mid])/2:vals[mid];
+    });
+    medianRow=derived;
+  }
+  return {companies, medianRow};
+}
+
+function runPEERS(){
+  const err=document.getElementById('err-peers'); err.style.display='none';
+  const text=document.getElementById('paste-peers').value.trim(); if(!text) return;
+  let data; try{ data=parsePeerTable(text); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {companies, medianRow}=data;
+  const focusName=document.getElementById('focusCompany').value.trim();
+  const focus = focusName ? companies.find(c=>c.name.toLowerCase()===focusName.toLowerCase()) : null;
+  const effectiveFocus = focus || companies.reduce((a,b)=>(a.marcap||0)>(b.marcap||0)?a:b, companies[0]);
+  const autoFocus = !focus;
+  const medPe=medianRow.pe, medRoe=medianRow.roe;
+  if(effectiveFocus.pe==null || medPe==null){ err.textContent='Needs at least P/E for the focus company and the median.'; err.style.display='block'; return; }
+  const peRatio=effectiveFocus.pe/medPe;
+  let valBand = peRatio<=0.75?'cheap' : peRatio<=1.15?'fair' : 'expensive';
+  let roeBand = effectiveFocus.roe!=null && medRoe!=null ? (effectiveFocus.roe>=medRoe*1.15?'high' : effectiveFocus.roe>=medRoe*0.85?'mid':'low') : 'mid';
+  let stampLabel, stampSub, stampCls;
+  if(valBand==='cheap' && roeBand==='high'){ stampLabel='CHEAP'; stampSub='& HIGH-QUALITY'; stampCls='good'; }
+  else if(valBand==='cheap'){ stampLabel='CHEAP'; stampSub='BUT LOW-QUALITY'; stampCls='warn'; }
+  else if(valBand==='expensive' && roeBand==='high'){ stampLabel='EXPENSIVE'; stampSub='BUT HIGH-QUALITY'; stampCls='warn'; }
+  else if(valBand==='expensive'){ stampLabel='EXPENSIVE'; stampSub='& LOW-QUALITY'; stampCls='bad'; }
+  else { stampLabel='MID-PACK'; stampSub='VALUATION'; stampCls='warn'; }
+  const stampReason = `${effectiveFocus.name} trades at P/E ${effectiveFocus.pe.toFixed(2)} vs peer median ${medPe.toFixed(2)}${effectiveFocus.roe!=null && medRoe!=null?`; ROE ${effectiveFocus.roe.toFixed(2)}% vs peer median ${medRoe.toFixed(2)}%`:''}.${autoFocus?' (Default focus — largest by market cap.)':''}`;
+
+  const dash=document.getElementById('dash-peers');
+  dash.innerHTML=`<div class="kpi-row" id="peers-kpi"></div>
+    <div class="stamp-panel" id="peers-stamp"></div>
+    <div class="panel"><div class="panel-title">Valuation &amp; ROE vs Peer Median</div><div class="panel-sub">top 8 peers by market cap</div><div class="chart-legend" id="peers-leg"></div><div class="chart-holder"><svg id="peers-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="peers-insights"></ul></div>
+    <div class="ledger"><table id="peers-ledger"></table></div>`;
+  const sorted = companies.slice().sort((a,b)=>(b.marcap||0)-(a.marcap||0)).slice(0,8);
+  const kr=document.getElementById('peers-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard(effectiveFocus.name+' · P/E', effectiveFocus.pe.toFixed(2), [{cls: valBand==='cheap'?'up':valBand==='expensive'?'down':'neutral', text: valBand==='cheap'?'Below median':valBand==='expensive'?'Above median':'In line'}]));
+  if(effectiveFocus.roe!=null) kr.appendChild(kpiCard(effectiveFocus.name+' · ROE', effectiveFocus.roe.toFixed(2)+'%', [{cls: roeBand==='high'?'up':roeBand==='low'?'down':'neutral', text: roeBand==='high'?'Above median':roeBand==='low'?'Below median':'Around median'}]));
+  if(medianRow.pe!=null) kr.appendChild(kpiCard('Peer median P/E', medianRow.pe.toFixed(2), [{cls:'neutral', text: companies.length+' companies'}]));
+  renderStamp('peers-stamp', stampCls, stampLabel, stampReason, stampSub);
+  renderCombo('peers-chart','peers-leg', sorted.map(c=>c.name.slice(0,10)),
+    [{name:'P/E', color:'#D9A441', data: sorted.map(c=>c.pe)},
+     {name:'ROE %', color:'#4FAE83', data: sorted.map(c=>c.roe)}],
+    null, v=>Math.round(v));
+  const il=document.getElementById('peers-insights'); il.innerHTML='';
+  if(medPe!=null) addInsight(il,'peer median','info',`Peer median P/E is ${medPe.toFixed(2)}${medRoe!=null?`, median ROE ${medRoe.toFixed(2)}%`:''}. ${effectiveFocus.name} is ${valBand==='cheap'?'below':valBand==='expensive'?'above':'in line with'} the median on valuation.`);
+  const withPe=companies.filter(c=>c.pe!=null).sort((a,b)=>a.pe-b.pe);
+  if(withPe.length>=2) addInsight(il,'spread','info',`P/E ranges from ${withPe[0].pe.toFixed(2)} (${withPe[0].name}) to ${withPe[withPe.length-1].pe.toFixed(2)} (${withPe[withPe.length-1].name}) across ${withPe.length} peers.`);
+  if(!il.children.length) addInsight(il,'note','info','Not enough data to generate deeper read-outs.');
+  const table=document.getElementById('peers-ledger');
+  let html='<thead><tr><th>Company</th><th>Mar Cap</th><th>Debt/Eq</th><th>P/E</th><th>ROE %</th><th>Sales growth %</th></tr></thead><tbody>';
+  sorted.forEach(c=>{
+    const isFocus = c.name.toLowerCase()===effectiveFocus.name.toLowerCase();
+    html+=`<tr class="${isFocus?'hi':''}"><td>${esc(c.name)}</td><td>${c.marcap!=null?fmt(c.marcap):'—'}</td><td>${c.debtEq!=null?c.debtEq.toFixed(2):'—'}</td><td>${c.pe!=null?c.pe.toFixed(2):'—'}</td><td>${c.roe!=null?c.roe.toFixed(2)+'%':'—'}</td><td>${c.salesGrowth!=null?c.salesGrowth.toFixed(2)+'%':'—'}</td></tr>`;
+  });
+  html+=`<tr class="hi"><td>${esc(medianRow.name||'Median')}</td><td>${medianRow.marcap!=null?fmt(medianRow.marcap):'—'}</td><td>${medianRow.debtEq!=null?medianRow.debtEq.toFixed(2):'—'}</td><td>${medianRow.pe!=null?medianRow.pe.toFixed(2):'—'}</td><td>${medianRow.roe!=null?medianRow.roe.toFixed(2)+'%':'—'}</td><td>${medianRow.salesGrowth!=null?medianRow.salesGrowth.toFixed(2)+'%':'—'}</td></tr>`;
+  html+='</tbody>';
+  table.innerHTML=html;
+  dash.style.display='block'; document.getElementById('intake-peers').style.display='none';
+  document.getElementById('dot-peers').style.display='inline-block';
+  MS.peers={label:'Peer Comparison',verdict:stampCls, items:[['P/E',effectiveFocus.pe.toFixed(2)],['vs peer median',medPe.toFixed(2)],['ROE',effectiveFocus.roe!=null?effectiveFocus.roe.toFixed(2)+'%':'—']], valBand, roeBand, focusName:effectiveFocus.name};
+  persist(); renderSnapshot();
+}
+
+// ============================== QUARTERLY RESULTS ==============================
+const SAMPLE_QR=`Quarterly Results
+Jun 2023\tSep 2023\tDec 2023\tMar 2024\tJun 2024\tSep 2024\tDec 2024\tMar 2025\tJun 2025\tSep 2025\tDec 2025\tMar 2026
+Sales +\t14745\t16545\t17376\t17720\t17095\t12086\t12925\t17249\t14812\t16327\t15683\t16817
+Expenses +\t13795\t14740\t16696\t16678\t16432\t12761\t12683\t16464\t14714\t15183\t14205\t14781
+Operating Profit\t950\t1804\t680\t1042\t663\t-675\t242\t785\t99\t1144\t1478\t2036
+OPM %\t6%\t11%\t3.9%\t6%\t3.9%\t-6%\t1.9%\t4.5%\t0.7%\t7%\t9%\t12%
+Interest\t57\t65\t50\t51\t48\t52\t79\t66\t37\t34\t33\t16
+Depreciation\t147\t157\t151\t151\t150\t153\t153\t150\t151\t152\t157\t150
+Profit before tax\t756\t1593\t486\t859\t484\t-862\t24\t602\t-64\t982\t1331\t1913
+Tax %\t26%\t25%\t25%\t27%\t26%\t-26%\t15%\t22%\t-37%\t27%\t25%\t26%
+Net Profit +\t556\t1195\t365\t628\t357\t-634\t21\t470\t-40\t719\t1002\t1422
+EPS in Rs\t37.37\t80.28\t24.53\t42.17\t23.98\t-42.55\t1.40\t31.56\t-2.69\t48.30\t67.26\t95.48`;
+
+function runQR(){
+  const err=document.getElementById('err-qr'); err.style.display='none';
+  const text=document.getElementById('paste-qr').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,null); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows}=data;
+  const sales=findRow(rows,[/^sales$/i]), expenses=findRow(rows,[/^expenses$/i]), opm=findRow(rows,[/^opm/i]);
+  const interest=findRow(rows,[/^interest$/i]), pbt=findRow(rows,[/^profit before tax$/i]);
+  const netProfit=findRow(rows,[/^net profit$/i]);
+  if(!sales){ err.textContent='Could not find a "Sales" row.'; err.style.display='block'; return; }
+  const last=periods.length-1;
+  const yoySales=sales.values.map((v,i)=> i>=4?pctChange(sales.values[i-4],v):null);
+  const yoyNP = netProfit ? netProfit.values.map((v,i)=> i>=4?pctChange(netProfit.values[i-4],v):null) : [];
+  const dash=document.getElementById('dash-qr');
+  dash.innerHTML=`<div class="ticker" id="qr-ticker"></div><div class="kpi-row" id="qr-kpi"></div><div class="stamp-panel" id="qr-stamp"></div>
+    <div class="panel"><div class="panel-title">Sales, Expenses &amp; Net Profit</div><div class="panel-sub">₹ crores per quarter</div><div class="chart-legend" id="qr-leg"></div><div class="chart-holder"><svg id="qr-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="qr-insights"></ul></div>
+    <div class="ledger"><table id="qr-ledger"></table></div>`;
+  const tw=document.getElementById('qr-ticker');
+  periods.forEach((q,i)=>{ const g=yoySales[i]; const d=document.createElement('div'); let cls='chip'+(g==null?' flat':g>=0?' pos':' neg'); if(i===last) cls+=' latest';
+    d.className=cls; d.innerHTML=`<span class="q">${q}</span><span class="g">${g==null?'—':fmtPct(g)}</span>`; tw.appendChild(d); });
+  tw.scrollLeft=tw.scrollWidth;
+  const kr=document.getElementById('qr-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard('Sales · '+periods[last],'₹'+fmt(sales.values[last])+' cr',[deltaPct(yoySales[last],'YoY ')]));
+  if(netProfit) kr.appendChild(kpiCard('Net Profit · '+periods[last],'₹'+fmt(netProfit.values[last])+' cr',[deltaPct(yoyNP[last],'YoY ')]));
+  if(opm) kr.appendChild(kpiCard('OPM · '+periods[last], opm.values[last]==null?'—':opm.values[last].toFixed(1)+'%', [{cls:'neutral',text:'—'}]));
+  let score=0; const curNP=netProfit?netProfit.values[last]:null;
+  if(curNP!=null&&curNP<0) score-=3;
+  const yS=yoySales[last]; if(yS!=null){ if(yS>=15)score+=2; else if(yS>=0)score+=1; else if(yS>=-10)score-=1; else score-=2; }
+  const yN=yoyNP[last]; if(yN!=null){ if(yN>=20)score+=2; else if(yN>=0)score+=1; else if(yN>=-20)score-=1; else score-=2; }
+  let verdict,label;
+  if(score>=4){verdict='good';label='Good Quarter';}
+  else if(score>=1){verdict='warn';label='Average Quarter';}
+  else if(score>=-2){verdict='warn';label='Weak Quarter';}
+  else {verdict='bad';label='Bad Quarter';}
+  const reason = `Sales ${fmtPct(yS)} YoY${yN!=null?', Net Profit '+fmtPct(yN)+' YoY':''}${curNP!=null&&curNP<0?', a net loss this quarter':''}.`;
+  renderStamp('qr-stamp',verdict,label,reason);
+  renderCombo('qr-chart','qr-leg',periods,[{name:'Sales',color:'#D9A441',data:sales.values},expenses&&{name:'Expenses',color:'rgba(139,144,160,.55)',data:expenses.values}].filter(Boolean), netProfit&&{name:'Net Profit',color:'#4FAE83',data:netProfit.values}, v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':Math.round(v));
+  const il=document.getElementById('qr-insights'); il.innerHTML='';
+  if(netProfit){ const lossQ=[]; netProfit.values.slice(Math.max(0,last-7),last+1).forEach((v,idx)=>{ const pi=Math.max(0,last-7)+idx; if(v!=null&&v<0) lossQ.push(periods[pi]); });
+    if(lossQ.length) addInsight(il,'loss quarter','bad',`Net profit was negative in ${lossQ.join(', ')} within the last 8 quarters.`);
+    else addInsight(il,'consistent','good','Net profit has stayed positive across the quarters shown.'); }
+  if(opm){ const cur=opm.values[last]; const trail=opm.values.slice(Math.max(0,last-4),last).filter(v=>v!=null); const avg=trail.length?trail.reduce((a,b)=>a+b,0)/trail.length:null;
+    if(cur!=null&&avg!=null){ const diff=cur-avg; addInsight(il,diff>=0?'margin up':'margin down',diff>=1?'good':diff<=-1?'bad':'info',`OPM is ${cur.toFixed(1)}%, vs a trailing 4-quarter average of ${avg.toFixed(1)}% (${diff>=0?'+':''}${diff.toFixed(1)}ppt).`); } }
+  if(interest&&pbt){ const iv=interest.values[last],pv=pbt.values[last]; if(iv!=null&&pv!=null&&(pv+iv)>0){ const burden=iv/(pv+iv)*100; if(burden>15) addInsight(il,'interest load','warn',`Interest ate ~${burden.toFixed(0)}% of pre-interest pre-tax profit this quarter.`); } }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('qr-ledger',periods,rows,/^(sales|net profit|operating profit|profit before tax)$/i);
+  document.getElementById('dash-qr').style.display='block'; document.getElementById('intake-qr').style.display='none';
+  document.getElementById('dot-qr').style.display='inline-block';
+  MS.qr={label:'Quarterly Results',verdict,items:[['Sales, latest Q','₹'+fmt(sales.values[last])+' cr'],['Sales YoY',fmtPct(yS)],['Net Profit YoY',yN!=null?fmtPct(yN):'—']], salesYoY:yS, netProfitYoY:yN, latestNP:curNP};
+  persist(); renderSnapshot();
+}
+
+// ============================== PROFIT & LOSS ==============================
+const SECTION_RE=/^(compounded sales growth|compounded profit growth|stock price cagr|return on equity)$/i;
+const SAMPLE_PNL=`Profit & Loss
+Mar 2015\tMar 2016\tMar 2017\tMar 2018\tMar 2019\tMar 2020\tMar 2021\tMar 2022\tMar 2023\tMar 2024\tMar 2025\tMar 2026\tTTM
+Sales +\t71448\t75841\t83773\t92094\t104721\t75382\t74278\t90171\t121362\t139078\t159211\t198639\t211375
+Expenses +\t62655\t65759\t73038\t78868\t89514\t65224\t62791\t75488\t101037\t114186\t128693\t161659\t171321
+Operating Profit\t8793\t10082\t10735\t13226\t15207\t10158\t11487\t14683\t20325\t24892\t30518\t36980\t40054
+OPM %\t12%\t13%\t13%\t14%\t15%\t13%\t15%\t16%\t17%\t18%\t19%\t19%\t19%
+Interest\t3157\t3368\t3648\t3987\t5021\t6021\t6102\t5018\t5830\t7488\t9083\t9591\t9720
+Depreciation\t2124\t2442\t2813\t3280\t3991\t3367\t3378\t3508\t4357\t4724\t6074\t7322\t7535
+Profit before tax\t4313\t5672\t6350\t10326\t8871\t1655\t3158\t9362\t14060\t15978\t19080\t25185\t27169
+Tax %\t40%\t37%\t36%\t23%\t32%\t119%\t52%\t23%\t19%\t23%\t26%\t26%\t
+Net Profit +\t3381\t3554\t4051\t7958\t6017\t-321\t1512\t7253\t11374\t12270\t14073\t18622\t20243
+EPS in Rs\t25.26\t25.35\t29.77\t60.41\t42.76\t1.02\t14.58\t52.91\t82.68\t90.62\t103.97\t137.50\t148.52
+Dividend Payout %\t23%\t21%\t22%\t11%\t17%\t205%\t54%\t20%\t18%\t21%\t22%\t22%\t
+Compounded Sales Growth
+10 Years:\t10%
+5 Years:\t22%
+Compounded Profit Growth
+5 Years:\t51%
+Return on Equity
+Last Year:\t20%
+3 Years:\t19%`;
+
+function statVal(sb,section,key){ const b=sb&&sb[section]; if(!b) return null; const v=b[key]; return v===undefined?null:v; }
+function statLatest(sb,section,keys){ for(const k of keys){ const v=statVal(sb,section,k); if(v!=null) return v; } return null; }
+
+function runPNL(){
+  const err=document.getElementById('err-pnl'); err.style.display='none';
+  const text=document.getElementById('paste-pnl').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,SECTION_RE); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows,statBlocks}=data;
+  const sales=findRow(rows,[/^sales$/i]), expenses=findRow(rows,[/^expenses$/i]), opm=findRow(rows,[/^opm/i]);
+  const interest=findRow(rows,[/^interest$/i]), pbt=findRow(rows,[/^profit before tax$/i]);
+  const netProfit=findRow(rows,[/^net profit$/i]);
+  if(!sales){ err.textContent='Could not find a "Sales" row.'; err.style.display='block'; return; }
+  const fyIdx=[]; periods.forEach((p,i)=>{ if(p.trim().toUpperCase()!=='TTM') fyIdx.push(i); });
+  const last=fyIdx[fyIdx.length-1];
+  const salesCAGR5=statVal(statBlocks,'Compounded Sales Growth','5 Years');
+  const profitCAGR5=statVal(statBlocks,'Compounded Profit Growth','5 Years');
+  const roeLast=statLatest(statBlocks,'Return on Equity',['Last Year','TTM']);
+  const yoySales = fyIdx.length>=2 ? pctChange(sales.values[fyIdx[fyIdx.length-2]],sales.values[last]) : null;
+  const yoyNP = (netProfit&&fyIdx.length>=2) ? pctChange(netProfit.values[fyIdx[fyIdx.length-2]],netProfit.values[last]) : null;
+  const dash=document.getElementById('dash-pnl');
+  dash.innerHTML=`<div class="kpi-row" id="pnl-kpi"></div><div class="stamp-panel" id="pnl-stamp"></div>
+    <div class="panel"><div class="panel-title">Sales, Expenses &amp; Net Profit</div><div class="panel-sub">₹ crores per year</div><div class="chart-legend" id="pnl-leg"></div><div class="chart-holder"><svg id="pnl-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="pnl-insights"></ul></div>
+    <div class="ledger"><table id="pnl-ledger"></table></div>`;
+  const kr=document.getElementById('pnl-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard('Sales · '+periods[last],'₹'+fmt(sales.values[last])+' cr',[deltaPct(yoySales,'YoY '),{cls:'neutral',text:'5Y CAGR '+(salesCAGR5!=null?salesCAGR5+'%':'—')}]));
+  if(netProfit) kr.appendChild(kpiCard('Net Profit · '+periods[last],'₹'+fmt(netProfit.values[last])+' cr',[deltaPct(yoyNP,'YoY '),{cls:'neutral',text:'5Y CAGR '+(profitCAGR5!=null?profitCAGR5+'%':'—')}]));
+  kr.appendChild(kpiCard('ROE (latest)', roeLast!=null?roeLast+'%':'—', [{cls:'neutral',text:opm&&opm.values[last]!=null?'OPM '+opm.values[last].toFixed(1)+'%':'—'}]));
+  let verdict='na',stampLabel='NOT ENOUGH DATA',stampCls='neutral',reason='',stampSub='';
+  if(salesCAGR5==null||profitCAGR5==null||roeLast==null){ reason="Needs Screener's Compounded Sales/Profit Growth and ROE blocks to run the quality screen — paste those sections too."; }
+  else{
+    const lossYears=[]; if(netProfit) netProfit.values.forEach((v,i)=>{ if(v!=null&&v<0) lossYears.push(periods[i]); });
+    const growthOk=salesCAGR5>=10, leverageOk=profitCAGR5>=salesCAGR5, roeOk=roeLast>=15, consistencyOk=lossYears.length===0;
+    const fails=[!growthOk,!leverageOk,!roeOk,!consistencyOk].filter(Boolean).length;
+    if(fails===0){ stampLabel='HIGH-QUALITY'; stampSub='COMPOUNDER'; stampCls='good'; verdict='good'; }
+    else if(fails===1 && !lossYears.length){ stampLabel='STEADY'; stampSub='COMPOUNDER'; stampCls='warn'; verdict='warn'; }
+    else { stampLabel='WEAK'; stampSub='COMPOUNDER'; stampCls='bad'; verdict='bad'; }
+    if(stampCls==='good') reason='Sales and profit have both compounded well over 5 years, profit growth kept pace with revenue, ROE is comfortably above a quality bar, and there is no loss year in the pasted history.';
+    else if(!growthOk) reason=`5-year sales growth (${salesCAGR5}%) is below a fast-compounder threshold.`;
+    else if(!leverageOk) reason=`Profit compounded slower than sales over 5 years (${profitCAGR5}% vs ${salesCAGR5}%) — margins likely under pressure.`;
+    else if(!roeOk) reason=`ROE (${roeLast}%) is below a typical quality threshold.`;
+    else reason=`There is at least one loss year in the pasted history (${lossYears.join(', ')}).`;
+  }
+  renderStamp('pnl-stamp',stampCls,stampLabel,reason,stampSub);
+  renderCombo('pnl-chart','pnl-leg',periods,[{name:'Sales',color:'#D9A441',data:sales.values},expenses&&{name:'Expenses',color:'rgba(139,144,160,.55)',data:expenses.values}].filter(Boolean), netProfit&&{name:'Net Profit',color:'#4FAE83',data:netProfit.values}, v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':Math.round(v));
+  const il=document.getElementById('pnl-insights'); il.innerHTML='';
+  if(salesCAGR5!=null&&profitCAGR5!=null){ const out=profitCAGR5>salesCAGR5; addInsight(il,out?'margin expansion':'margin pressure',out?'good':'warn',`Sales compounded at ${salesCAGR5}%/yr over 5 years vs profit at ${profitCAGR5}%/yr — ${out?'profit outpaced revenue':'profit lagged revenue'}.`); }
+  if(netProfit){ const lossYears=[]; netProfit.values.forEach((v,i)=>{ if(v!=null&&v<0) lossYears.push(periods[i]); });
+    if(lossYears.length) addInsight(il,'loss year','bad',`Net profit was negative in ${lossYears.join(', ')}.`); else addInsight(il,'consistent','good','No loss years in the pasted history.'); }
+  if(interest&&pbt){ const iv=interest.values[last],pv=pbt.values[last]; if(iv!=null&&pv!=null&&(pv+iv)>0){ const b=iv/(pv+iv)*100; if(b>20) addInsight(il,'interest load','warn',`Interest absorbs ~${b.toFixed(0)}% of pre-interest pre-tax profit in ${periods[last]}.`); } }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('pnl-ledger',periods,rows,/^(sales|net profit|operating profit|profit before tax)$/i);
+  document.getElementById('dash-pnl').style.display='block'; document.getElementById('intake-pnl').style.display='none';
+  document.getElementById('dot-pnl').style.display='inline-block';
+  MS.pnl={label:'Profit & Loss',verdict,items:[['Sales, latest FY','₹'+fmt(sales.values[last])+' cr'],['5Y Sales CAGR',salesCAGR5!=null?salesCAGR5+'%':'—'],['ROE',roeLast!=null?roeLast+'%':'—']], salesCAGR5, interest: interest?interest.values[last]:null, pbt: pbt?pbt.values[last]:null, netProfitLatest: netProfit?netProfit.values[last]:null};
+  persist(); renderSnapshot();
+}
+
+// ============================== BALANCE SHEET ==============================
+const SAMPLE_BS=`Balance Sheet
+Mar 2015\tMar 2016\tMar 2017\tMar 2018\tMar 2019\tMar 2020\tMar 2021\tMar 2022\tMar 2023\tMar 2024\tMar 2025\tMar 2026
+Equity Capital\t8245\t8245\t8245\t8245\t9895\t9895\t9697\t9697\t9697\t9697\t9697\t9697
+Reserves\t73849\t83330\t89593\t95318\t101462\t108945\t116042\t125677\t137326\t151013\t174374\t193479
+Borrowings +\t102252\t99424\t113773\t130049\t173058\t200630\t210208\t210707\t222913\t237131\t250096\t271005
+Other Liabilities +\t35366\t33666\t36990\t48880\t62509\t58202\t62075\t69751\t77253\t81437\t89565\t84262
+Total Liabilities\t219712\t224665\t248601\t282492\t346923\t377671\t398022\t415831\t447189\t479278\t523732\t558442
+Fixed Assets +\t91853\t92929\t104532\t128245\t150985\t187803\t203245\t224923\t240424\t258934\t271437\t318697
+CWIP\t67555\t75046\t86896\t83386\t118397\t98508\t97506\t91126\t89179\t87664\t100859\t84957
+Investments\t1902\t6473\t7614\t8876\t8132\t9307\t10589\t10626\t13935\t15885\t19704\t24180
+Other Assets +\t58403\t50217\t49560\t61985\t69409\t82053\t86681\t89156\t103651\t116795\t131733\t130609
+Total Assets\t219712\t224665\t248601\t282492\t346923\t377671\t398022\t415831\t447189\t479278\t523732\t558442`;
+
+function runBS(){
+  const err=document.getElementById('err-bs'); err.style.display='none';
+  const text=document.getElementById('paste-bs').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,null); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows}=data;
+  const eq=findRow(rows,[/^equity capital$/i]), res=findRow(rows,[/^reserves$/i]), borr=findRow(rows,[/^borrowings$/i]);
+  const otherLiab=findRow(rows,[/^other liabilities$/i]), totLiab=findRow(rows,[/^total liabilities$/i]);
+  if(!eq||!res){ err.textContent='Could not find "Equity Capital" and "Reserves" rows.'; err.style.display='block'; return; }
+  const last=periods.length-1;
+  const netWorth=periods.map((p,i)=>(eq.values[i]!=null&&res.values[i]!=null)?eq.values[i]+res.values[i]:null);
+  const de=periods.map((p,i)=>(borr&&borr.values[i]!=null&&netWorth[i]!=null&&netWorth[i]>0)?borr.values[i]/netWorth[i]:null);
+  const nwCAGR5 = last>=5 ? cagr(netWorth[last-5],netWorth[last],5) : null;
+  const yoyNW=pctChange(netWorth[last-1],netWorth[last]);
+  const dash=document.getElementById('dash-bs');
+  dash.innerHTML=`<div class="kpi-row" id="bs-kpi"></div><div class="stamp-panel" id="bs-stamp"></div>
+    <div class="panel"><div class="panel-title">Capital Structure</div><div class="panel-sub">how Total Liabilities is funded, per year</div><div class="chart-legend" id="bs-leg"></div><div class="chart-holder"><svg id="bs-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="bs-insights"></ul></div>
+    <div class="ledger"><table id="bs-ledger"></table></div>`;
+  const kr=document.getElementById('bs-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard('Net Worth · '+periods[last],'₹'+fmt(netWorth[last])+' cr',[deltaPct(yoyNW,'YoY '),{cls:'neutral',text:'5Y CAGR '+(nwCAGR5!=null?nwCAGR5.toFixed(1)+'%':'—')}]));
+  if(borr) kr.appendChild(kpiCard('Borrowings · '+periods[last],'₹'+fmt(borr.values[last])+' cr',[deltaPct(pctChange(borr.values[last-1],borr.values[last]),'YoY ')]));
+  kr.appendChild(kpiCard('Debt / Equity · '+periods[last], de[last]!=null?de[last].toFixed(2)+'x':'—', [{cls:'neutral',text:'—'}]));
+  let verdict='na',label='Not enough data',stampCls='neutral',reason='';
+  if(last<5||de[last]==null){ reason='Needs at least 6 years of Balance Sheet data.'; }
+  else{
+    const curDE=de[last], pastDE=de[last-5];
+    const growthOk=nwCAGR5!=null&&nwCAGR5>=8, leverageOk=curDE<2.0, deTrendOk=pastDE==null?true:(curDE<=pastDE+0.15);
+    const meets=growthOk&&leverageOk&&deTrendOk;
+    verdict=meets?'good':'bad'; label=meets?'STRONG SHEET':'WEAK SHEET'; stampCls=meets?'good':'bad';
+    reason = meets ? 'Net worth has compounded at a healthy pace, debt-to-equity is manageable and not trending up.'
+      : !growthOk ? `Net worth compounded at ${nwCAGR5!=null?nwCAGR5.toFixed(1):'—'}%/yr over 5 years — a modest pace.`
+      : !leverageOk ? `Debt-to-equity stands at ${curDE.toFixed(2)}x — a highly leveraged capital structure.`
+      : `Debt-to-equity rose from ${pastDE.toFixed(2)}x to ${curDE.toFixed(2)}x over 5 years — leverage trending the wrong way.`;
+  }
+  renderStamp('bs-stamp',stampCls,label,reason);
+  const eqPct=periods.map((p,i)=>(eq.values[i]!=null&&res.values[i]!=null&&totLiab&&totLiab.values[i])?(eq.values[i]+res.values[i])/totLiab.values[i]*100:null);
+  const borrPct=periods.map((p,i)=>(borr&&borr.values[i]!=null&&totLiab&&totLiab.values[i])?borr.values[i]/totLiab.values[i]*100:null);
+  const olPct=periods.map((p,i)=>(otherLiab&&otherLiab.values[i]!=null&&totLiab&&totLiab.values[i])?otherLiab.values[i]/totLiab.values[i]*100:null);
+  if(totLiab) renderStacked('bs-chart','bs-leg',periods,[{name:'Equity+Reserves',color:'#4FAE83',data:eqPct},{name:'Borrowings',color:'#C1503E',data:borrPct},{name:'Other Liab.',color:'rgba(139,144,160,.55)',data:olPct}], v=>v.toFixed(0)+'%');
+  const il=document.getElementById('bs-insights'); il.innerHTML='';
+  if(last>=5&&de[last]!=null&&de[last-5]!=null){ const diff=de[last]-de[last-5]; addInsight(il,diff<=-0.1?'deleveraging':diff>=0.1?'leveraging up':'stable',diff<=-0.1?'good':diff>=0.1?'warn':'info',`Debt-to-equity moved from ${de[last-5].toFixed(2)}x to ${de[last].toFixed(2)}x over 5 years.`); }
+  if(totLiab){ let issue=false; periods.forEach((p,i)=>{ const vals=[eq.values[i],res.values[i],borr?borr.values[i]:0,otherLiab?otherLiab.values[i]:0]; if(vals.some(v=>v==null)) return; const sum=vals.reduce((a,b)=>a+b,0); if(totLiab.values[i]!=null&&Math.abs(sum-totLiab.values[i])>Math.max(2,totLiab.values[i]*0.005)) issue=true; });
+    addInsight(il,issue?'data check':'ties out',issue?'warn':'good',issue?'Figures don\u2019t fully tie out in at least one year — worth double-checking the paste.':'The balance sheet ties out cleanly across the years shown.'); }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('bs-ledger',periods,rows,/^(equity capital|reserves|borrowings|total liabilities|total assets)$/i);
+  document.getElementById('dash-bs').style.display='block'; document.getElementById('intake-bs').style.display='none';
+  document.getElementById('dot-bs').style.display='inline-block';
+  MS.bs={label:'Balance Sheet',verdict,items:[['Net Worth, latest','₹'+fmt(netWorth[last])+' cr'],['Debt/Equity',de[last]!=null?de[last].toFixed(2)+'x':'—'],['5Y NW CAGR',nwCAGR5!=null?nwCAGR5.toFixed(1)+'%':'—']], debtEquity: de[last]};
+  persist(); renderSnapshot();
+}
+
+// ============================== CASH FLOW ==============================
+const SAMPLE_CF=`Cash Flows
+Mar 2015\tMar 2016\tMar 2017\tMar 2018\tMar 2019\tMar 2020\tMar 2021\tMar 2022\tMar 2023\tMar 2024\tMar 2025\tMar 2026
+Cash from Operating Activity +\t\t\t-0.22\t5.36\t-14.21\t4.49\t2.83\t1.62\t3.26\t-0.08\t9.86\t42.89
+Cash from Investing Activity +\t\t\t-1.73\t-6.01\t-15.05\t-4.24\t-2.00\t-3.45\t-1.88\t-41.71\t-8.88\t-35.04
+Cash from Financing Activity +\t\t\t0.54\t-0.20\t31.39\t-1.56\t-0.20\t1.74\t-1.60\t42.97\t-0.34\t-7.47
+Net Cash Flow\t\t\t-1.41\t-0.84\t2.13\t-1.31\t0.63\t-0.09\t-0.22\t1.18\t0.63\t0.38
+Free Cash Flow\t\t\t-1.84\t0.03\t-28.87\t-1.19\t1.16\t-0.24\t1.45\t-1.91\t1.59\t34.86
+CFO/OP\t\t\t27%\t69%\t-106%\t73%\t311%\t26%\t45%\t16%\t85%\t284%`;
+
+function runCF(){
+  const err=document.getElementById('err-cf'); err.style.display='none';
+  const text=document.getElementById('paste-cf').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,null); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows}=data;
+  const cfo=findRow(rows,[/^cash from operating activity$/i]), fcf=findRow(rows,[/^free cash flow$/i]), cfoOp=findRow(rows,[/^cfo\s*\/\s*op/i]);
+  if(!cfo){ err.textContent='Could not find a "Cash from Operating Activity" row.'; err.style.display='block'; return; }
+  const last=periods.length-1;
+  const dash=document.getElementById('dash-cf');
+  dash.innerHTML=`<div class="ticker" id="cf-ticker"></div><div class="kpi-row" id="cf-kpi"></div><div class="stamp-panel" id="cf-stamp"></div>
+    <div class="panel"><div class="panel-title">Operating vs Free Cash Flow</div><div class="panel-sub">₹ crores per year</div><div class="chart-legend" id="cf-leg"></div><div class="chart-holder"><svg id="cf-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="cf-insights"></ul></div>
+    <div class="ledger"><table id="cf-ledger"></table></div>`;
+  const tw=document.getElementById('cf-ticker');
+  periods.forEach((q,i)=>{ const v=cfo.values[i]; const d=document.createElement('div'); let cls='chip'+(v==null?' flat':v>=0?' pos':' neg'); if(i===last) cls+=' latest';
+    d.className=cls; d.innerHTML=`<span class="q">${q}</span><span class="g">${v==null?'—':fmt(v)}</span>`; tw.appendChild(d); });
+  tw.scrollLeft=tw.scrollWidth;
+  const cfoCur=cfo.values[last], fcfCur=fcf?fcf.values[last]:null, cfoOpCur=cfoOp?cfoOp.values[last]:null;
+  const cfoPrev=last>=1?cfo.values[last-1]:null;
+  const kr=document.getElementById('cf-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard('CFO · '+periods[last],'₹'+fmt(cfoCur)+' cr',[{cls:cfoPrev==null?'neutral':((cfoCur-cfoPrev)>=0?'up':'down'),text:'YoY '+(cfoPrev==null?'—':(cfoCur-cfoPrev>=0?'+':'')+(cfoCur-cfoPrev).toFixed(2)+'cr')}]));
+  if(fcf) kr.appendChild(kpiCard('FCF · '+periods[last],'₹'+fmt(fcfCur)+' cr',[{cls:'neutral',text:'—'}]));
+  if(cfoOp) kr.appendChild(kpiCard('CFO/OP · '+periods[last], cfoOpCur!=null?cfoOpCur+'%':'—', [{cls:'neutral',text:'—'}]));
+  let stampCls='neutral', stampLabel='NOT ENOUGH DATA', reason='';
+  if(cfoCur==null){ reason='Latest column has no CFO figure.'; }
+  else if(cfoCur<=0){ stampCls='bad'; stampLabel='CASH STRAINED'; reason='Operating activities consumed cash this year rather than generating it.'; }
+  else if(fcfCur!=null&&fcfCur<0){ stampCls='warn'; stampLabel='INVESTMENT-HEAVY'; reason='CFO is positive, but investing outflows push FCF negative.'; }
+  else if(cfoOpCur!=null&&cfoOpCur<40){ stampCls='warn'; stampLabel='WEAK CONVERSION'; reason=`Cash conversion is weak — CFO is only ${cfoOpCur}% of operating profit.`; }
+  else { stampCls='good'; stampLabel='HEALTHY CASH'; reason='CFO is positive and free cash flow after investing is positive.'; }
+  renderStamp('cf-stamp',stampCls,stampLabel,reason);
+  renderCombo('cf-chart','cf-leg',periods,[{name:'CFO',color:'#D9A441',data:cfo.values}], fcf&&{name:'FCF',color:'#4FAE83',data:fcf.values}, v=>v.toFixed(1));
+  const il=document.getElementById('cf-insights'); il.innerHTML='';
+  if(cfoOp){ const vals=cfoOp.values.filter(v=>v!=null); if(vals.length>=2){ const mn=Math.min(...vals),mx=Math.max(...vals); if(mx-mn>=150) addInsight(il,'volatile','warn',`Cash conversion swung from ${mn}% to ${mx}% across the years shown — operating cash flow doesn\u2019t track profit closely.`); } }
+  if(fcf){ const fv=fcf.values.filter(v=>v!=null); if(fv.length){ const sum=fv.reduce((a,b)=>a+b,0); addInsight(il,'cumulative FCF',sum>=0?'good':'warn', sum>=0?`Cumulative free cash flow of ₹${fmt(sum)}cr across the years with data.`:`Cumulative free cash outflow of ₹${fmt(Math.abs(sum))}cr.`); } }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('cf-ledger',periods,rows,/^(cash from operating activity|net cash flow|free cash flow)$/i);
+  document.getElementById('dash-cf').style.display='block'; document.getElementById('intake-cf').style.display='none';
+  document.getElementById('dot-cf').style.display='inline-block';
+  MS.cf={label:'Cash Flow',verdict: stampCls==='good'?'good':stampCls==='bad'?'bad':'warn', items:[['CFO, latest','₹'+fmt(cfoCur)+' cr'],['FCF, latest',fcf?'₹'+fmt(fcfCur)+' cr':'—'],['CFO/OP',cfoOpCur!=null?cfoOpCur+'%':'—']], cfoLatest:cfoCur};
+  persist(); renderSnapshot();
+}
+
+// ============================== RATIOS ==============================
+const SAMPLE_RATIOS=`Ratios
+Mar 2015\tMar 2016\tMar 2017\tMar 2018\tMar 2019\tMar 2020\tMar 2021\tMar 2022\tMar 2023\tMar 2024\tMar 2025\tMar 2026
+Debtor Days\t17\t18\t14\t26\t17\t20\t23\t21\t14\t5\t8\t8
+Inventory Days\t87\t92\t73\t68\t66\t91\t136\t89\t77\t83\t73\t72
+Days Payable\t87\t70\t80\t81\t52\t95\t108\t72\t69\t61\t48\t59
+Cash Conversion Cycle\t17\t40\t6\t13\t31\t15\t52\t38\t22\t27\t32\t20
+Working Capital Days\t15\t23\t30\t43\t43\t6\t-5\t-37\t-6\t-2\t16\t39
+ROCE %\t10%\t18%\t14%\t11%\t10%\t5%\t-5%\t-3%\t5%\t24%\t30%\t36%`;
+
+function runRatios(){
+  const err=document.getElementById('err-ratios'); err.style.display='none';
+  const text=document.getElementById('paste-ratios').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,null); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows}=data;
+  const debtor=findRow(rows,[/^debtor\s*days?$/i]), inventory=findRow(rows,[/^inventory\s*days?$/i]), payable=findRow(rows,[/^days?\s*payable$/i,/^payable\s*days?$/i]);
+  const ccc=findRow(rows,[/^cash\s*conversion\s*cycle$/i]), wcDays=findRow(rows,[/^working\s*capital\s*days?$/i]), roce=findRow(rows,[/^roce\s*%?$/i,/^return\s*on\s*capital\s*employed/i]);
+  if(!roce && !ccc && !wcDays){ err.textContent='Could not find any of ROCE %, CCC, or WC Days.'; err.style.display='block'; return; }
+  const last=periods.length-1;
+  const roceCur = roce ? roce.values[last] : null;
+  let roceBand='mid', roceCls='warn';
+  if(roceCur!=null){
+    if(roceCur>=20){ roceBand='strong'; roceCls='good'; }
+    else if(roceCur>=12){ roceBand='moderate'; roceCls='warn'; }
+    else if(roceCur>=0){ roceBand='weak'; roceCls='bad'; }
+    else { roceBand='negative'; roceCls='bad'; }
+  }
+  let cccTrend=null, cccTrendCls='warn', cccReason='';
+  if(ccc && last>=4 && ccc.values[last]!=null && ccc.values[last-4]!=null){
+    const cur=ccc.values[last], past=ccc.values[last-4], diff=cur-past;
+    if(diff<=-3){ cccTrend='better'; cccTrendCls='good'; }
+    else if(diff>=3){
+      if(cur<0&&past<0){ cccTrend='slightly-worse'; cccTrendCls='warn'; }
+      else { cccTrend='worse'; cccTrendCls='bad'; }
+    }
+    else { cccTrend='steady'; cccTrendCls='warn'; }
+    cccReason = `CCC moved from ${past} to ${cur} days over 4 years.`;
+  }
+  let stampLabel, stampSub, stampCls;
+  if(roceBand==='strong'){ stampLabel='EFFICIENT'; stampSub='OPERATOR'; stampCls='good'; }
+  else if(roceBand==='moderate'||(cccTrend==='better')){ stampLabel='AVERAGE'; stampSub='OPERATOR'; stampCls='warn'; }
+  else if(roceBand==='weak'||roceBand==='negative'){ stampLabel='OPERATIONALLY'; stampSub='STRETCHED'; stampCls='bad'; }
+  else { stampLabel='MID'; stampSub='PACK'; stampCls='warn'; }
+  const stampReason = roceCur!=null ? `ROCE of ${roceCur.toFixed(1)}% in ${periods[last]}${cccReason?' — '+cccReason:''}.` : cccReason;
+  const dash=document.getElementById('dash-ratios');
+  dash.innerHTML=`<div class="kpi-row" id="ratios-kpi"></div><div class="stamp-panel" id="ratios-stamp"></div>
+    <div class="panel"><div class="panel-title">Working Capital Cycle</div><div class="panel-sub">days per year</div><div class="chart-legend" id="ratios-leg"></div><div class="chart-holder"><svg id="ratios-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="ratios-insights"></ul></div>
+    <div class="ledger"><table id="ratios-ledger"></table></div>`;
+  const kr=document.getElementById('ratios-kpi'); kr.innerHTML='';
+  if(roce) kr.appendChild(kpiCard('ROCE · '+periods[last], roceCur!=null?roceCur.toFixed(1)+'%':'—', [{cls:roceCls==='good'?'up':roceCls==='bad'?'down':'neutral', text: roceBand==='strong'?'Strong':roceBand==='moderate'?'Moderate':roceBand==='weak'?'Weak':roceBand==='negative'?'Negative':'—'}]));
+  if(ccc) kr.appendChild(kpiCard('CCC · '+periods[last], ccc.values[last]!=null?ccc.values[last]+' days':'—', [{cls:cccTrendCls==='good'?'up':cccTrendCls==='bad'?'down':'neutral', text: cccTrend==='better'?'Getting better':cccTrend==='slightly-worse'?'Getting slightly worse':cccTrend==='worse'?'Getting worse':cccTrend==='steady'?'Holding steady':'—'}]));
+  if(wcDays) kr.appendChild(kpiCard('WC Days · '+periods[last], wcDays.values[last]!=null?wcDays.values[last]+' days':'—', [{cls: wcDays.values[last]!=null && wcDays.values[last]<=0 ?'up':'neutral', text: wcDays.values[last]!=null && wcDays.values[last]<=0?'Customer-funded':''}]));
+  renderStamp('ratios-stamp',stampCls,stampLabel,stampReason,stampSub);
+  const lines=[];
+  if(debtor) lines.push({name:'Debtor Days',color:'#D9A441',data:debtor.values});
+  if(inventory) lines.push({name:'Inventory Days',color:'#7FB3D5',data:inventory.values});
+  if(payable) lines.push({name:'Days Payable',color:'#9C8FD9',data:payable.values});
+  if(ccc) lines.push({name:'CCC',color:'#4FAE83',data:ccc.values});
+  if(wcDays) lines.push({name:'WC Days',color:'#C1503E',data:wcDays.values});
+  renderLine('ratios-chart','ratios-leg',periods,lines, v=>Math.round(v)+'d');
+  const il=document.getElementById('ratios-insights'); il.innerHTML='';
+  if(roce && roceCur!=null) addInsight(il, roceBand==='strong'?'strong ROCE':roceBand==='moderate'?'moderate ROCE':roceBand==='weak'?'weak ROCE':'negative ROCE', roceCls, `Latest ROCE is ${roceCur.toFixed(1)}%.`);
+  if(cccTrend) addInsight(il, cccTrend==='better'?'CCC better':cccTrend==='slightly-worse'?'CCC slightly worse':cccTrend==='worse'?'CCC worse':'CCC steady', cccTrendCls, cccReason);
+  if(wcDays){ const negYears=[]; wcDays.values.forEach((v,i)=>{ if(v!=null&&v<0) negYears.push(periods[i]); });
+    if(negYears.length) addInsight(il,'negative WC','good',`Working capital days went negative in ${negYears.length} year(s) — the business was funded by customers/suppliers.`); }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('ratios-ledger',periods,rows,/^(cash conversion cycle|working capital days|roce)/i);
+  dash.style.display='block'; document.getElementById('intake-ratios').style.display='none';
+  document.getElementById('dot-ratios').style.display='inline-block';
+  MS.ratios={label:'Ratios',verdict:stampCls, items:[['ROCE, latest',roceCur!=null?roceCur.toFixed(1)+'%':'—'],['CCC trend', cccTrend||'—'],['WC Days', wcDays&&wcDays.values[last]!=null?wcDays.values[last]+'d':'—']], roceCur};
+  persist(); renderSnapshot();
+}
+
+// ============================== SHAREHOLDING ==============================
+const SAMPLE_SH=`Shareholding Pattern
+Sep 2023\tDec 2023\tMar 2024\tJun 2024\tSep 2024\tDec 2024\tMar 2025\tJun 2025\tSep 2025\tDec 2025\tMar 2026\tJun 2026
+Promoters +\t47.22%\t46.89%\t46.89%\t46.89%\t46.89%\t46.58%\t46.53%\t46.43%\t42.98%\t42.72%\t42.28%\t42.28%
+FIIs +\t10.14%\t11.13%\t12.95%\t10.44%\t10.32%\t8.49%\t6.20%\t6.34%\t7.02%\t6.47%\t6.60%\t7.51%
+DIIs +\t9.63%\t8.21%\t5.80%\t6.45%\t6.44%\t7.46%\t7.74%\t9.15%\t16.38%\t15.89%\t16.59%\t15.90%
+Public +\t33.02%\t33.78%\t34.36%\t36.22%\t36.35%\t37.38%\t39.49%\t38.04%\t33.53%\t34.80%\t34.41%\t34.17%
+No. of Shareholders\t96452\t105068\t112395\t124943\t129398\t134503\t163296\t161089\t170983\t178615\t178986\t204149`;
+
+function runSH(){
+  const err=document.getElementById('err-sh'); err.style.display='none';
+  const text=document.getElementById('paste-sh').value.trim(); if(!text) return;
+  let data; try{ data=parseTable(text,null); }catch(e){ err.textContent=e.message; err.style.display='block'; return; }
+  const {periods,rows}=data;
+  const prom=findRow(rows,[/^promoters$/i]), fii=findRow(rows,[/^fii?s$/i]), dii=findRow(rows,[/^dii?s$/i]), pub=findRow(rows,[/^public$/i]);
+  if(!prom){ err.textContent='Could not find a "Promoters" row.'; err.style.display='block'; return; }
+  const last=periods.length-1;
+  const inst=periods.map((p,i)=>{ const f=fii?fii.values[i]:null,d=dii?dii.values[i]:null; if(f==null&&d==null) return null; return (f||0)+(d||0); });
+  const dash=document.getElementById('dash-sh');
+  dash.innerHTML=`<div class="ticker" id="sh-ticker"></div><div class="kpi-row" id="sh-kpi"></div><div class="stamp-panel" id="sh-stamp"></div>
+    <div class="panel"><div class="panel-title">Ownership Composition</div><div class="panel-sub">% of shares held, per quarter</div><div class="chart-legend" id="sh-leg"></div><div class="chart-holder"><svg id="sh-chart" viewBox="0 0 640 250"></svg></div></div>
+    <div class="insights"><ul class="insight-list" id="sh-insights"></ul></div>
+    <div class="ledger"><table id="sh-ledger"></table></div>`;
+  const tw=document.getElementById('sh-ticker');
+  periods.forEach((q,i)=>{ const v=prom.values[i],p2=i>=1?prom.values[i-1]:null; const d=document.createElement('div');
+    let cls='chip'+(v==null||p2==null?' flat':(Math.abs(v-p2)<0.05?' flat':(v>=p2?' pos':' neg'))); if(i===last) cls+=' latest';
+    d.className=cls; d.innerHTML=`<span class="q">${q}</span><span class="g">${v==null?'—':v.toFixed(2)+'%'}</span>`; tw.appendChild(d); });
+  tw.scrollLeft=tw.scrollWidth;
+  const promCur=prom.values[last], promPrev=last>=1?prom.values[last-1]:null, promChange=(promCur!=null&&promPrev!=null)?promCur-promPrev:null;
+  const kr=document.getElementById('sh-kpi'); kr.innerHTML='';
+  kr.appendChild(kpiCard('Promoters · '+periods[last], promCur!=null?promCur.toFixed(2)+'%':'—', [{cls:promChange==null?'neutral':(Math.abs(promChange)<0.05?'neutral':(promChange>=0?'up':'down')),text:'QoQ '+(promChange==null?'—':(promChange>=0?'+':'')+promChange.toFixed(2)+'pp')}]));
+  kr.appendChild(kpiCard('FIIs+DIIs · '+periods[last], inst[last]!=null?inst[last].toFixed(2)+'%':'—', [{cls:'neutral',text:'—'}]));
+  if(pub) kr.appendChild(kpiCard('Public · '+periods[last], pub.values[last]!=null?pub.values[last].toFixed(2)+'%':'—', [{cls:'neutral',text:'—'}]));
+  let stampCls='neutral', stampLabel='NOT ENOUGH DATA', reason='';
+  if(promChange==null){ reason='Needs at least two quarters of promoter holding data.'; }
+  else if(promChange<=-2){ const instChange=(inst[last]!=null&&inst[last-1]!=null)?inst[last]-inst[last-1]:null; const absorbed=instChange!=null&&instChange>=Math.abs(promChange)*0.6;
+    stampCls='bad'; stampLabel='OWNERSHIP SHIFT'; reason=`Promoter holding fell ${Math.abs(promChange).toFixed(2)}pp this quarter.`+(absorbed?` Largely absorbed by institutions (FII+DII +${instChange.toFixed(2)}pp).`:' Institutional holding didn\u2019t pick up a matching amount — check filings.'); }
+  else if(promChange>=0.5){ stampCls='good'; stampLabel='STABLE OWNERSHIP'; reason=`Promoter holding rose ${promChange.toFixed(2)}pp this quarter — increased commitment.`; }
+  else { stampCls='good'; stampLabel='STABLE OWNERSHIP'; reason='Promoter holding has been broadly stable — no meaningful ownership shift.'; }
+  renderStamp('sh-stamp',stampCls,stampLabel,reason);
+  const series=[{name:'Promoters',color:'#D9A441',data:prom.values}];
+  if(fii) series.push({name:'FIIs',color:'#7FB3D5',data:fii.values});
+  if(dii) series.push({name:'DIIs',color:'#4FAE83',data:dii.values});
+  if(pub) series.push({name:'Public',color:'#8B90A0',data:pub.values});
+  renderStacked('sh-chart','sh-leg',periods,series, v=>v.toFixed(0)+'%');
+  const il=document.getElementById('sh-insights'); il.innerHTML='';
+  let maxAbs=0,maxIdx=-1; for(let i=1;i<=last;i++){ if(prom.values[i]!=null&&prom.values[i-1]!=null){ const d=prom.values[i]-prom.values[i-1]; if(Math.abs(d)>Math.abs(maxAbs)){maxAbs=d;maxIdx=i;} } }
+  if(maxIdx!==-1&&Math.abs(maxAbs)>=1.5) addInsight(il,'anomaly','warn',`Sharpest single-quarter promoter move: ${(maxAbs>=0?'+':'')}${maxAbs.toFixed(2)}pp in ${periods[maxIdx]} — check exchange filings.`);
+  const firstIdx=prom.values.findIndex(v=>v!=null);
+  if(firstIdx!==-1&&firstIdx!==last){ const change=prom.values[last]-prom.values[firstIdx]; addInsight(il,change>=0?'accumulating':'diluting',Math.abs(change)<1?'info':(change>=0?'good':'bad'),`Promoter holding moved ${(change>=0?'+':'')}${change.toFixed(2)}pp from ${periods[firstIdx]} to ${periods[last]}.`); }
+  if(!il.children.length) addInsight(il,'note','info','Not enough rows matched to generate deeper read-outs.');
+  renderLedger('sh-ledger',periods,rows,/^(promoters|public|no\.?\s*of\s*shareholders)$/i);
+  dash.style.display='block'; document.getElementById('intake-sh').style.display='none';
+  document.getElementById('dot-sh').style.display='inline-block';
+  MS.sh={label:'Shareholding',verdict:stampCls==='good'?'good':stampCls==='bad'?'bad':'warn', items:[['Promoters, latest',promCur!=null?promCur.toFixed(2)+'%':'—'],['QoQ change',promChange!=null?(promChange>=0?'+':'')+promChange.toFixed(2)+'pp':'—'],['FIIs+DIIs',inst[last]!=null?inst[last].toFixed(2)+'%':'—']], promoterChangeQoQ: promChange};
+  persist(); renderSnapshot();
+}
+
+const RUN={peers:runPEERS,qr:runQR,pnl:runPNL,bs:runBS,cf:runCF,ratios:runRatios,sh:runSH};
+const SAMPLES={peers:SAMPLE_PEERS,qr:SAMPLE_QR,pnl:SAMPLE_PNL,bs:SAMPLE_BS,cf:SAMPLE_CF,ratios:SAMPLE_RATIOS,sh:SAMPLE_SH};
+document.querySelectorAll('[data-run]').forEach(b=>b.addEventListener('click',()=>RUN[b.dataset.run]()));
+document.querySelectorAll('[data-sample]').forEach(b=>b.addEventListener('click',()=>{
+  document.getElementById('paste-'+b.dataset.sample).value=SAMPLES[b.dataset.sample];
+  if(!document.getElementById('companyName').value) document.getElementById('companyName').value='Sample Co.';
+}));
+
+// ============================== SNAPSHOT ==============================
+const ORDER=['peers','qr','pnl','bs','cf','ratios','sh'];
+function statusFor(verdict){
+  if(verdict==='good') return {cls:'good', label:'OK'};
+  if(verdict==='bad') return {cls:'bad', label:'FLAG'};
+  if(verdict==='warn') return {cls:'warn', label:'MIXED'};
+  return {cls:'na', label:'—'};
+}
+function renderSnapshot(){
+  const el=document.getElementById('snapContent');
+  const keys=ORDER.filter(k=>MS[k]);
+  if(!keys.length){ el.innerHTML='<div class="snap-empty">Paste data into any of the seven tabs above to build the snapshot. Cross-statement checks appear here once two or more are loaded.</div>'; return; }
+  let html='<div class="snap-grid">';
+  keys.forEach(k=>{ const m=MS[k]; const s=statusFor(m.verdict);
+    html+=`<div class="snap-card"><h4>${esc(m.label)} <span class="status ${s.cls}">${s.label}</span></h4>`;
+    m.items.forEach(([l,v])=>{ html+=`<div class="row"><span>${esc(l)}</span><b>${esc(v)}</b></div>`; });
+    html+='</div>'; });
+  html+='</div>';
+  let goodCount=0, warnCount=0, badCount=0;
+  keys.forEach(k=>{ const v=MS[k].verdict; if(v==='good') goodCount++; else if(v==='bad') badCount++; else if(v==='warn') warnCount++; });
+  let combinedCls, combinedLabel, combinedText, combinedHeadline;
+  if(badCount===0 && goodCount>=Math.max(3, keys.length-1)){
+    combinedCls='good'; combinedLabel='STRONG';
+    combinedHeadline='Fundamentally strong across the checked statements.';
+  } else if(badCount>=2){
+    combinedCls='bad'; combinedLabel='CAUTION';
+    combinedHeadline='Multiple statements flagged — worth understanding the flags before reading anything else.';
+  } else if(badCount===1){
+    combinedCls='warn'; combinedLabel='MIXED';
+    combinedHeadline='One statement flagged; the rest look reasonable.';
+  } else {
+    combinedCls='warn'; combinedLabel='MIXED';
+    combinedHeadline='No outright flags, but not everything is strength either.';
+  }
+  combinedText = `Across ${keys.length} statements loaded: ${goodCount} reading OK, ${warnCount} mixed, ${badCount} flagged. ${combinedHeadline}`;
+  html += `<div class="combined-panel"><div class="combined-stamp ${combinedCls}">${combinedLabel}</div><div class="combined-text"><div class="combined-headline">Combined Read</div>${esc(combinedText)}</div></div>`;
+  const cross=[];
+  if(MS.cf && MS.cf.cfoLatest!=null && MS.pnl && MS.pnl.netProfitLatest!=null && MS.pnl.netProfitLatest!==0){
+    const ratio=MS.cf.cfoLatest/MS.pnl.netProfitLatest*100;
+    cross.push([ratio>=70?'good':'warn', `Operating cash flow is ${ratio.toFixed(0)}% of latest reported net profit — ${ratio>=70?'profit is broadly backed by cash':'a meaningful gap between reported profit and actual cash generated, worth checking working capital'}.`]);
+  }
+  if(MS.bs && MS.bs.debtEquity!=null && MS.pnl && MS.pnl.interest!=null && MS.pnl.pbt!=null && (MS.pnl.pbt+MS.pnl.interest)>0){
+    const burden=MS.pnl.interest/(MS.pnl.pbt+MS.pnl.interest)*100;
+    cross.push([MS.bs.debtEquity<1.5&&burden<20?'good':'warn', `Debt-to-equity is ${MS.bs.debtEquity.toFixed(2)}x and interest absorbs ~${burden.toFixed(0)}% of pre-interest pre-tax profit — ${MS.bs.debtEquity<1.5&&burden<20?'leverage looks manageable':'worth watching leverage and interest coverage together'}.`]);
+  }
+  if(MS.sh && MS.sh.promoterChangeQoQ!=null && MS.qr && MS.qr.verdict){
+    if(MS.sh.promoterChangeQoQ<=-2) cross.push(['warn', `Promoters cut their stake by ${Math.abs(MS.sh.promoterChangeQoQ).toFixed(2)}pp in the same window as the latest quarterly result — worth reading the two together.`]);
+  }
+  if(MS.pnl && MS.pnl.salesCAGR5!=null && MS.qr && MS.qr.salesYoY!=null){
+    const gap=MS.qr.salesYoY-MS.pnl.salesCAGR5;
+    if(Math.abs(gap)>=10) cross.push(['info', `Latest quarterly sales growth (${fmtPct(MS.qr.salesYoY)}) is ${gap>0?'well ahead of':'well behind'} the 5-year P&L CAGR (${MS.pnl.salesCAGR5}%) — growth is ${gap>0?'accelerating':'decelerating'} versus the long-run trend.`]);
+  }
+  if(MS.peers && MS.pnl){
+    const val=MS.peers.valBand, quality=MS.peers.roeBand;
+    if(val==='cheap' && MS.pnl.verdict==='good') cross.push(['good', `Peers show ${MS.peers.focusName||'the focus company'} trading cheaper than the peer median, and the P&amp;L screens as a quality compounder — cheap and quality at the same time, which is worth understanding.`]);
+    else if(val==='expensive' && MS.pnl.verdict==='bad') cross.push(['warn', `Peers show ${MS.peers.focusName||'the focus company'} trading richer than the peer median while the P&amp;L flags as weak — an expensive stock on weak fundamentals is a red flag worth noting.`]);
+    else if(val==='expensive' && MS.pnl.verdict==='good') cross.push(['info', `Peers show ${MS.peers.focusName||'the focus company'} trading richer than the peer median, and the P&amp;L screens as a quality compounder — the premium may be justified by quality.`]);
+  }
+  if(MS.ratios && MS.bs){
+    const roceOk = MS.ratios.roceCur!=null && MS.ratios.roceCur>=15;
+    const leverageOk = MS.bs.debtEquity!=null && MS.bs.debtEquity<1;
+    if(roceOk && leverageOk) cross.push(['good', `ROCE above 15% with debt-to-equity below 1x is the cleanest combination — efficient operations without a levered balance sheet.`]);
+    else if(!roceOk && !leverageOk) cross.push(['warn', `Both operating efficiency (ROCE ${MS.ratios.roceCur!=null?MS.ratios.roceCur.toFixed(1)+'%':'—'}) and leverage (D/E ${MS.bs.debtEquity!=null?MS.bs.debtEquity.toFixed(2)+'x':'—'}) look stretched — the two together are worth understanding.`]);
+  }
+  if(cross.length){
+    html+='<div class="insights"><div class="panel-title" style="margin-bottom:10px;">Cross-Statement Checks</div><ul class="insight-list">'+
+      cross.map(([cls,text])=>`<li><span class="tag ${cls}">${cls==='good'?'good':cls==='warn'?'warn':'info'}</span><span>${text}</span></li>`).join('')+'</ul></div>';
+  }
+  el.innerHTML=html;
+}
+
+// Initial button state
+updateClearTabButton();
+refreshSavedDropdown();
+})();
+</script>
+</body>
+</html>
